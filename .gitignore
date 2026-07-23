@@ -1,0 +1,44 @@
+# --- 敏感文件 ---
+.env
+.env.*
+!.env.example
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# --- 虚拟环境 ---
+venv/
+.venv/
+env/
+
+# --- 数据库 & 日志 ---
+data/*.db
+data/*.db-wal
+data/*.db-shm
+data/logs/
+
+# --- IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- 临时文件 ---
+*.tmp
+*.bak
+
+# --- 内部文档（不公开）---
+功能与指令手册.md
