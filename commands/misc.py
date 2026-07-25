@@ -124,6 +124,41 @@ def register(router):
         log.info("用户反馈", user=ctx.user_key, content=ctx.arg_str[:200])
         ctx.reply("[OK] 感谢反馈")
 
+    @router.command("credits", "致谢", "credit", "thanks", help="致谢与开源信息", category="其他")
+    def credits(ctx):
+        ctx.reply(
+            f"## 🌟 致谢 Credits 🌟\n"
+            f"\n"
+            f"### 🏠 hack.chat\n"
+            f"BoB 运行在 [hack.chat](https://hack.chat) 平台上 🌐\n"
+            f"感谢官方开源服务器端代码，让 BoB 能深度适配协议 ✨\n"
+            f"📦 仓库：https://github.com/hack-chat/hack.chat\n"
+            f"\n"
+            f"### 🌸 Awaya 阿瓦娅\n"
+            f"部分功能设计参考了 [Awaya](https://github.com/Kroos372/awaya) 🐱\n"
+            f"感谢阿瓦娅的 21点、红包、seen/look 等灵感 💡\n"
+            f"BoB 用自己的风格重新实现了这些功能 🔧\n"
+            f"\n"
+            f"### 📚 HackChat Python 库\n"
+            f"最初的 hackchat Python 封装 🐍\n"
+            f"📦 仓库：https://github.com/gkbrk/hackchat\n"
+            f"\n"
+            f"---\n"
+            f"\n"
+            f"### 🤝 开源社区共建\n"
+            f"BoB 是完全开源的 hack.chat 机器人 🤖💛\n"
+            f"欢迎更多小伙伴一起优化 BoB！🚀\n"
+            f"\n"
+            f"⭐ Star：https://github.com/alltobebetter/BoBot\n"
+            f"🐛 Issue：https://github.com/alltobebetter/BoBot/issues\n"
+            f"🌿 PR：https://github.com/alltobebetter/BoBot/pulls\n"
+            f"\n"
+            f"也欢迎更多开源的 hack.chat 机器人一起建设社区！🌈\n"
+            f"让我们让这个小小的聊天室变得更有趣吧～ ✨🎉\n"
+            f"\n"
+            f"*BoB 用 ❤️ 和 ☕ 打造*"
+        )
+
     # ---- 聊天历史 ----
 
     @router.command("history", "历史", help="查看最近消息 history [条数]", category="信息")
