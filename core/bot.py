@@ -74,25 +74,12 @@ class Bot:
         suffix = random.choice(self.config.bot.nick_suffixes)
         return f"{self.config.bot.name}_{suffix}"
 
-    # ---- 服务器端限流阈值（text.length / 83 / 4，超过 ~8 分触发）----
-    # hack.chat 服务器对 chat 消息按文本长度计算 spam score
-    # 单条消息上限 2999 字符，设 2000 留余量，仅超长消息才分条
-    MAX_MSG_LEN = 2000
-
     # ---- 外发 ----
     def say(self, text: str) -> None:
+        """发送公屏消息并记录历史。服务器单条上限 2999 字符。"""
         if not text:
             return
         text = str(text)
-        # 长消息分条发送，避免触发服务器端限流
-        if len(text) <= self.MAX_MSG_LEN:
-            self._send_chat(text)
-        else:
-            for chunk in self._split_message(text, self.MAX_MSG_LEN):
-                self._send_chat(chunk)
-
-    def _send_chat(self, text: str) -> None:
-        """发送单条 chat 消息并记录历史。"""
         self.conn.send({"cmd": "chat", "text": text})
         try:
             self.app.history.record(
@@ -100,25 +87,6 @@ class Bot:
             )
         except Exception:
             pass
-
-    @staticmethod
-    def _split_message(text: str, max_len: int):
-        """按换行符智能分条，避免在词中间截断。"""
-        lines = text.split("\n")
-        chunk = ""
-        for line in lines:
-            if len(chunk) + len(line) + 1 > max_len:
-                if chunk:
-                    yield chunk
-                # 单行超长也硬截断
-                while len(line) > max_len:
-                    yield line[:max_len]
-                    line = line[max_len:]
-                chunk = line
-            else:
-                chunk = chunk + "\n" + line if chunk else line
-        if chunk:
-            yield chunk
 
     def whisper(self, nick: str, text: str) -> None:
         if text:
