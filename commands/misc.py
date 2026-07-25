@@ -24,6 +24,7 @@ def register(router):
                 f"[INFO] {ctx.bot.config.bot.name} v{ctx.bot.VERSION}\n"
                 "多 Provider AI · SQLite 存储 · 代码生成 · 聊天历史\n"
                 f"网页版：{web}\n"
+                "开源：https://github.com/alltobebetter/BoBot\n"
                 "输入 help 查看全部功能"
             )
             return

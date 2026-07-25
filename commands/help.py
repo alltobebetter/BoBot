@@ -15,4 +15,5 @@ def register(router):
             for name, h in sorted(cats[cat]):
                 lines.append(f"{name} - {h}" if h else f"{name}")
         lines.append(f"\n网页版：{ctx.bot.config.bot.web_url}")
+        lines.append("开源：https://github.com/alltobebetter/BoBot")
         ctx.reply_smart("\n".join(lines))

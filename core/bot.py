@@ -132,7 +132,10 @@ class Bot:
 
         # 进场自我介绍（只发一次，重连不发）
         if not self._intro_sent:
-            intro = f"我是 {self.config.bot.name}，版本 {self.VERSION}，已上线！输入 help 查看功能～"
+            intro = (
+                f"我是 {self.config.bot.name}，版本 {self.VERSION}，已上线！"
+                f"输入 help 查看功能～ 开源地址：https://github.com/alltobebetter/BoBot"
+            )
             self.say(intro)
             self._intro_sent = True
 
@@ -227,6 +230,7 @@ class Bot:
             "checkin → 每日签到领金币",
             "help → 查看全部功能",
             f"网页版：{web}",
+            "开源：https://github.com/alltobebetter/BoBot",
         ]
         self.whisper(nick, "\n".join(lines))
 
