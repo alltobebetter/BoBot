@@ -68,6 +68,12 @@ class Bot:
     def say(self, text: str) -> None:
         if text:
             self.conn.send({"cmd": "chat", "text": str(text)})
+            try:
+                self.app.history.record(
+                    self.config.bot.room, self.nick, "", str(text),
+                )
+            except Exception:
+                pass
 
     def whisper(self, nick: str, text: str) -> None:
         if text:
