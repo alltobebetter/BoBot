@@ -17,6 +17,8 @@ from services.history import HistoryService
 from services.messages import MessageService
 from services.profile import ProfileService
 from services.quotes import QuoteService
+from services.redpacket import RedPacketService
+from services.seen import LookService, SeenService
 from services.stats import StatsService
 from services.users import UserManager
 from storage.db import Database
@@ -36,6 +38,7 @@ class GameRegistry:
         from games.uno import UnoGame
         from games.wordle import WordleGame
         from games.zhajinhua import ZhaJinHuaGame
+        from games.blackjack import BlackjackGame
 
         self.wordle = WordleGame()
         self.idiom = IdiomGame()
@@ -45,6 +48,7 @@ class GameRegistry:
         self.zhajinhua = ZhaJinHuaGame()
         self.uno = UnoGame()
         self.crypto = CryptoGame(kv)
+        self.blackjack = BlackjackGame()
 
 
 class App:
@@ -76,6 +80,9 @@ class App:
         self.friends = FriendsService()
         self.quotes = QuoteService(self.db)
         self.digest = DigestService(self)
+        self.redpacket = RedPacketService(self.kv, self.coins)
+        self.seen = SeenService(self.kv)
+        self.look = LookService()
 
         # 游戏
         self.games = GameRegistry(self.kv)

@@ -8,6 +8,92 @@ from utils.text import now
 
 
 def register(router):
+    @router.command("time", help="文学时钟（文学作品中的时间）", category="信息")
+    def time(ctx):
+        import random
+        import time as _time
+
+        try:
+            import requests
+        except ImportError:
+            ctx.reply("需要安装 requests")
+            return
+
+        # 当前时间（UTC+8）
+        now = _time.localtime(_time.time() + 8 * 3600)
+        hour_min = f"{now.tm_hour:02d}_{now.tm_min:02d}"
+        url = f"https://literature-clock.jenevoldsen.com/times/{hour_min}.json"
+        try:
+            resp = requests.get(url, timeout=10)
+            data = resp.json()
+            if not data:
+                ctx.reply("[ERR] 暂无文学时钟数据")
+                return
+            item = random.choice(data)
+            quote = item.get("quote_first", "") + f"**{item.get('quote_time_case', '')}**" + item.get("quote_last", "")
+            quote = quote.replace("<br/>", "\n>")
+            source = f"\n- {item.get('title', '?')}, *{item.get('author', '?')}*"
+            ctx.reply(f"> {quote}\n{source}")
+        except Exception as e:
+            ctx.reply(f"[ERR] 获取失败：{e}")
+
+    @router.command("today", help="历史上的今天", category="信息")
+    def today(ctx):
+        import random
+        import time as _time
+
+        try:
+            import requests
+        except ImportError:
+            ctx.reply("需要安装 requests")
+            return
+
+        now = _time.localtime(_time.time() + 8 * 3600)
+        month, day = now.tm_mon, now.tm_mday
+        url = f"https://wai.shaiwang.life/api/history/{month}/{day}"
+        try:
+            resp = requests.get(url, timeout=10)
+            data = resp.json()
+            if not data:
+                ctx.reply(f"[INFO] 历史上的 {month}月{day}日：暂无数据")
+                return
+            events = data if isinstance(data, list) else data.get("data", [])
+            if not events:
+                ctx.reply(f"[INFO] 历史上的 {month}月{day}日：暂无数据")
+                return
+            picked = random.sample(events, min(5, len(events)))
+            lines = [f"[INFO] 历史上的 {month}月{day}日", ""]
+            for e in picked:
+                year = e.get("year", "?")
+                title = e.get("title", e.get("event", "?"))
+                lines.append(f"**{year}年** {title}")
+            ctx.reply("\n".join(lines))
+        except Exception as e:
+            # fallback: 使用本地数据
+            ctx.reply(f"[ERR] 获取失败：{e}\n历史上的 {month}月{day}日")
+
+    @router.command("seen", help="查看用户最后发言 seen <昵称|#识别码>", category="信息")
+    def seen(ctx):
+        if not ctx.args:
+            ctx.reply("用法：seen <昵称> 或 seen *<识别码>")
+            return
+        target = ctx.args[0]
+        if target.startswith("*"):
+            r = ctx.app.seen.get_by_trip(target[1:])
+        else:
+            target = target.lstrip("@")
+            r = ctx.app.seen.get_by_nick(target)
+        ctx.reply(r.message)
+
+    @router.command("look", help="查看在线用户信息 look <昵称>", category="信息")
+    def look(ctx):
+        if not ctx.args:
+            ctx.reply("用法：look <昵称>")
+            return
+        target = ctx.args[0].lstrip("@")
+        r = ctx.app.look.get(target)
+        ctx.reply(r.message)
+
     @router.command("me", help="发送动作描述 me <动作>", category="娱乐")
     def me(ctx):
         if not ctx.arg_str:

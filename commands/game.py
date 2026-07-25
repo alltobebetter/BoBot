@@ -344,3 +344,69 @@ def register(router):
             ctx.reply(f"[OK] 卖出 {qty:g} {sym}，获得 {proceeds} 金币")
         else:
             ctx.reply("未知子命令")
+
+    # ---- 21点 Blackjack ----
+    @router.command("bj", "blackjack", "21", help="21点 bj <下注|hit|stand|double|start|check|quit>", category="游戏")
+    def blackjack(ctx):
+        g = ctx.app.games.blackjack
+        sub = ctx.args[0].lower() if ctx.args else ""
+
+        if sub in ("hit", "h"):
+            r = g.hit(ctx.nick, ctx.trip)
+            ctx.reply(r.message)
+            _bj_check_settle(ctx, g)
+        elif sub in ("stand", "s"):
+            r = g.stand(ctx.nick, ctx.trip)
+            ctx.reply(r.message)
+            _bj_check_settle(ctx, g)
+        elif sub in ("double", "d"):
+            r = g.double(ctx.nick, ctx.trip)
+            if not r:
+                ctx.reply(r.message)
+                return
+            charge_after(ctx, r, "21点双倍")
+            ctx.reply(r.message)
+            _bj_check_settle(ctx, g)
+        elif sub == "start":
+            r = g.start(ctx.nick, ctx.trip)
+            ctx.reply(r.message)
+        elif sub == "check":
+            r = g.check()
+            ctx.reply(r.message)
+        elif sub == "quit":
+            r = g.quit(ctx.nick, ctx.trip)
+            if r and r.data and "refund" in r.data:
+                ctx.app.coins.add(r.data["to_nick"], r.data["to_trip"], r.data["refund"], reason="21点退出退还")
+            ctx.reply(r.message)
+        else:
+            # bj <bet> — 下注加入
+            bet = parse_positive_int(sub) if sub else None
+            if bet is None:
+                ctx.reply(
+                    "21点 Blackjack\n"
+                    "bj <下注>  下注加入\n"
+                    "bj start   开始发牌\n"
+                    "bj hit     要牌\n"
+                    "bj stand   停牌\n"
+                    "bj double  双倍下注（仅首两张牌）\n"
+                    "bj check   查看局面\n"
+                    "bj quit    退出（未开始时）"
+                )
+                return
+            if not need_balance(ctx, bet):
+                return
+            r = g.join(ctx.nick, ctx.trip, bet)
+            if not r:
+                ctx.reply(r.message)
+                return
+            charge_after(ctx, r, "21点下注")
+            ctx.reply(r.message)
+
+
+    def _bj_check_settle(ctx, game):
+        """检查 21点是否进入结算阶段，如果是则发送结算结果并发放奖金。"""
+        if game.phase == "done":
+            result = game.get_result()
+            ctx.reply(result.message)
+            payout(ctx, result, "21点", "blackjack")
+            game.reset()

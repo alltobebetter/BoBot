@@ -53,6 +53,42 @@ def register(router):
             return
         ctx.reply(ctx.app.coins.transfer(ctx.nick, ctx.trip, target, amount).message)
 
+    @router.command("packet", "红包", "redpacket", help="红包 packet <金额> <人数> | packet <id> | packet", category="经济")
+    def packet(ctx):
+        if not ctx.args:
+            # 查看红包列表
+            r = ctx.app.redpacket.list_packets()
+            ctx.reply(r.message)
+            return
+        # 尝试解析为抢红包（ID 是字母数字混合）
+        sub = ctx.args[0]
+        if len(sub) == 6 and not sub.isdigit() and sub.isalnum():
+            r = ctx.app.redpacket.grab(ctx.nick, ctx.trip, sub)
+            if r and r.data and "grant" in r.data:
+                ctx.app.coins.add(r.data["to_nick"], r.data["to_trip"], r.data["grant"], reason="抢红包")
+            ctx.reply(r.message)
+            return
+        # 解析为发红包：packet <金额> <人数>
+        if len(ctx.args) < 2:
+            ctx.reply("用法：\npacket <金额> <人数>  发红包\npacket <id>  抢红包\npacket  查看列表")
+            return
+        amount = parse_positive_int(ctx.args[0])
+        people = parse_positive_int(ctx.args[1])
+        if amount is None or people is None:
+            ctx.reply("金额和人数必须是正整数")
+            return
+        # 检查余额
+        if ctx.app.coins.balance(ctx.nick, ctx.trip) < amount:
+            ctx.reply(f"金币不足（需要 {amount}）")
+            return
+        r = ctx.app.redpacket.create(ctx.nick, ctx.trip, amount, people)
+        if not r:
+            ctx.reply(r.message)
+            return
+        # 扣费
+        ctx.app.coins.spend(ctx.nick, ctx.trip, amount, reason="发红包")
+        ctx.reply(r.message)
+
     @router.command("shop", help="查看商店", category="经济")
     def shop(ctx):
         ctx.reply_smart(ctx.app.shop.list_text())

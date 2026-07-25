@@ -250,6 +250,10 @@ class Bot:
             log.info("有 session token，重连将尝试恢复昵称", nick=self.nick)
         self.online_users.clear()
         self._channel_check_state = None
+        try:
+            self.app.look.on_clear()
+        except Exception:
+            pass
 
     # ---- 消息处理 ----
     def _on_message(self, msg: dict) -> None:
@@ -317,10 +321,18 @@ class Bot:
             self.online_users.clear()
             for u in msg.get("users", []) or []:
                 self._add_online_user(u)
+                try:
+                    self.app.look.on_join(u.get("nick", ""))
+                except Exception:
+                    pass
             log.info("当前在线", count=len(self.online_users))
         elif cmd == "onlineRemove":
             nick = msg.get("nick", "")
             self.online_users.pop(nick, None)
+            try:
+                self.app.look.on_leave(nick)
+            except Exception:
+                pass
         elif cmd == "updateUser":
             self._on_update_user(msg)
         elif cmd == "warn":
@@ -418,6 +430,10 @@ class Bot:
         if not nick:
             return
         self._add_online_user(msg)
+        try:
+            self.app.look.on_join(nick)
+        except Exception:
+            pass
 
         # 三层欢迎逻辑（同 BoBot 原版）
         welcome = self.app.users.welcome_for(nick)
@@ -470,11 +486,16 @@ class Bot:
             return
         trip = msg.get("trip", "") or ""
         text = (msg.get("text") or "").strip()
-        # 记录聊天历史
+        # 记录聊天历史 + seen + look
         channel = self.config.bot.room
         try:
             self.app.history.record(channel, nick, trip, text,
                                     custom_id=msg.get("customId"))
+        except Exception:
+            pass
+        try:
+            self.app.seen.record(nick, trip, text)
+            self.app.look.on_chat(nick)
         except Exception:
             pass
         command, args = self._parse(text)
@@ -496,6 +517,84 @@ class Bot:
             if parts:
                 return parts[0].lower(), parts[1:]
         return None, []
+
+    # ---- 整点报时 + 自动 MOTD ----
+    CLOCK_MSGS = [
+        "0点了，新的一天开始了~",
+        "1点了，还不睡吗？",
+        "2点了，夜深了，注意休息。",
+        "3点了，月色真好。",
+        "4点了，黎明前的黑暗。",
+        "清晨5点，早起的鸟儿有虫吃~",
+        "6点了，新的一天开始！",
+        "7点了，该吃早饭了~",
+        "8点了，今天有什么计划呢？",
+        "9点了，喝杯水放松一下。",
+        "10点了，上午过得真快。",
+        "11点了，准备吃午饭吧。",
+        "12点了，午饭时间~",
+        "13点了，漫长的下午开始了~",
+        "14点了，下午好。",
+        "15点了，来杯下午茶？",
+        "16点了，摸一摸信赖的人吧~",
+        "17点了，快下班了~",
+        "18点了，晚饭时间。",
+        "19点了，今天有收获吗？",
+        "20点了，晚上好~",
+        "21点了，夜生活开始了~",
+        "22点了，早睡早起身体好~",
+        "23点了，该休息了~",
+    ]
+
+    def _clock_loop(self) -> None:
+        """后台线程：整点报时 + 更新 MOTD 含活跃统计。
+
+        每整点发送一条报时消息，同时设置 MOTD 为
+        欢迎语 + 最近一小时/今日的消息数和用户数。
+        """
+        import time as _t
+        while self._running:
+            # 计算到下一个整点的等待时间
+            now_ts = _t.time()
+            now_local = _t.localtime(now_ts + 8 * 3600)  # UTC+8
+            # 到下一个整点的秒数
+            wait = 3600 - now_local.tm_min * 60 - now_local.tm_sec
+            _t.sleep(wait)
+            if not self._running:
+                break
+
+            now_local = _t.localtime(_t.time() + 8 * 3600)
+            hour = now_local.tm_hour
+
+            # 报时
+            if 0 <= hour < len(self.CLOCK_MSGS):
+                try:
+                    self.say(self.CLOCK_MSGS[hour])
+                except Exception:
+                    pass
+
+            # 更新 MOTD（需要 mod 权限才能 setmotd）
+            try:
+                today_msgs = self.app.history.count_today(self.config.bot.room)
+                motd = (
+                    f"**欢迎来到 ?{self.config.bot.room}**\n"
+                    f"今日消息数：{today_msgs}\n"
+                    f"在线人数：{len(self.online_users)}\n"
+                    f"当前时间：{hour:02d}:00 (UTC+8)\n"
+                    f"---\n"
+                    f"输入 help 查看功能 | @我 聊天"
+                )
+                self.conn.send({"cmd": "setMotd", "motd": motd})
+            except Exception as e:
+                log.warning("更新 MOTD 失败", error=str(e))
+
+            # 检查红包过期
+            try:
+                r = self.app.redpacket.check_expired()
+                if r and r.message:
+                    self.say(r.message)
+            except Exception:
+                pass
 
     # ---- 频道验证 ----
     def _channel_check_loop(self) -> None:
@@ -538,6 +637,7 @@ class Bot:
         log.info("机器人启动中...", name=self.config.bot.name, nick=self.nick, version=self.VERSION)
         self._running = True
         threading.Thread(target=self._channel_check_loop, daemon=True).start()
+        threading.Thread(target=self._clock_loop, daemon=True).start()
         self.conn.run()
 
     def stop(self) -> None:
