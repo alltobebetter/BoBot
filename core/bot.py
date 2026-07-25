@@ -442,7 +442,7 @@ class Bot:
             self.say(welcome)
         elif not self.app.users.is_known(nick):
             # 2. 新用户：创建账户 + 默认欢迎 + 私聊功能介绍
-            self.app.users.get_or_create(nick, trip)
+            self.app.users.get_or_create(nick, msg.get("trip", ""))
             self.say(f"欢迎 {nick} 加入聊天室！输入 help 查看帮助")
             self._whisper_intro(nick)
         else:
