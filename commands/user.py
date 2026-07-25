@@ -25,17 +25,20 @@ def register(router):
             rows = ctx.app.stats.top_weekly(10)
             text = render_ranking("[INFO] 本周话痨榜", rows,
                 lambda r: f"{r['nick']} - {r['messages']} 条")
+            text += f"\n完整排行：{ctx.bot.config.bot.web_url}/leaderboard"
             ctx.reply_smart(text)
             return
         if sub == "total":
             rows = ctx.app.stats.top_chatters(10)
             text = render_ranking("[INFO] 总话痨榜", rows,
                 lambda r: f"{r['nick']} - {r['messages']} 条")
+            text += f"\n完整排行：{ctx.bot.config.bot.web_url}/leaderboard"
             ctx.reply_smart(text)
             return
         # 默认金币排行
         rows = ctx.app.coins.rankings(10)
         text = render_ranking("[INFO] 金币排行榜", rows, lambda r: f"{r['nick']} - {r['coins']}")
+        text += f"\n完整排行：{ctx.bot.config.bot.web_url}/leaderboard"
         ctx.reply_smart(text)
 
     @router.command("transfer", "give", help="转账 transfer <昵称#trip> <金额>", category="经济")
@@ -114,6 +117,7 @@ def register(router):
     def chatrank(ctx):
         rows = ctx.app.stats.top_chatters(10)
         text = render_ranking("[INFO] 话痨榜", rows, lambda r: f"{r['nick']} - {r['messages']} 条")
+        text += f"\n完整排行：{ctx.bot.config.bot.web_url}/leaderboard"
         ctx.reply_smart(text)
 
     @router.command("fortune", "yunshi", help="今日运势", category="娱乐")

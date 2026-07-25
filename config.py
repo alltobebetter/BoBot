@@ -76,6 +76,8 @@ class BotConfig:
     health_check_interval: int = _int("HEALTH_CHECK_INTERVAL", 10)
     health_inactive_timeout: int = _int("HEALTH_INACTIVE_TIMEOUT", 300)
     nick_suffixes: List[str] = field(default_factory=lambda: NICK_SUFFIXES)
+    # Web 前端地址（用于命令回复中的引导提示）
+    web_url: str = os.getenv("WEB_URL", "https://bob.supage.eu.org")
 
     def is_admin(self, nick: str, trip: str) -> bool:
         return any(

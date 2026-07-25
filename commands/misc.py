@@ -19,9 +19,11 @@ def register(router):
     @router.command("feedback", "bug", "version", "new", help="反馈/版本信息 feedback [内容]", category="其他")
     def feedback(ctx):
         if not ctx.arg_str:
+            web = ctx.bot.config.bot.web_url
             ctx.reply(
                 f"[INFO] {ctx.bot.config.bot.name} v{ctx.bot.VERSION}\n"
                 "多 Provider AI · SQLite 存储 · 代码生成 · 聊天历史\n"
+                f"网页版：{web}\n"
                 "输入 help 查看全部功能"
             )
             return
@@ -47,6 +49,7 @@ def register(router):
         for m in msgs:
             text = m["text"][:40] + "…" if len(m["text"]) > 40 else m["text"]
             lines.append(f"• {m['nick']}: {text}")
+        lines.append(f"完整历史记录：{ctx.bot.config.bot.web_url}/history")
         ctx.reply_smart("\n".join(lines))
 
     @router.command("search", "搜索", help="搜索聊天记录 search <关键词>", category="信息")
@@ -63,6 +66,7 @@ def register(router):
         for m in results:
             text = m["text"][:50] + "…" if len(m["text"]) > 50 else m["text"]
             lines.append(f"• {m['nick']}: {text}")
+        lines.append(f"更多结果：{ctx.bot.config.bot.web_url}/history")
         ctx.reply_smart("\n".join(lines))
 
     # ---- 考古 ----
@@ -117,7 +121,7 @@ def register(router):
             return
         q = quotes[0]
         ts = q["ts"][:16].replace("T", " ") if q["ts"] else ""
-        ctx.reply(f"[INFO] 金句\n[{ts}] {q['nick']}: {q['text']}")
+        ctx.reply(f"[INFO] 金句\n[{ts}] {q['nick']}: {q['text']}\n更多金句：{ctx.bot.config.bot.web_url}/quotes")
 
     # ---- 每日总结 ----
 

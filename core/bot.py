@@ -218,6 +218,7 @@ class Bot:
 
     def _whisper_intro(self, nick: str) -> None:
         """新用户一次性私聊功能介绍。"""
+        web = self.config.bot.web_url
         lines = [
             "[INFO] 此消息仅出现一次。",
             "",
@@ -225,6 +226,7 @@ class Bot:
             "wordle / guess / dice / idiom → 小游戏",
             "checkin → 每日签到领金币",
             "help → 查看全部功能",
+            f"网页版：{web}",
         ]
         self.whisper(nick, "\n".join(lines))
 
