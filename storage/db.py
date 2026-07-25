@@ -119,11 +119,12 @@ CREATE TABLE IF NOT EXISTS quotes (
 );
 CREATE INDEX IF NOT EXISTS idx_quotes_channel ON quotes(channel);
 CREATE TABLE IF NOT EXISTS digests (
-    date TEXT PRIMARY KEY,
+    date TEXT,
     channel TEXT,
     content TEXT,
     msg_count INTEGER NOT NULL DEFAULT 0,
-    created_ts TEXT
+    created_ts TEXT,
+    PRIMARY KEY (date, channel)
 );
 """
 

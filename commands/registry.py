@@ -21,22 +21,39 @@ def charge_after(ctx, result, reason: str) -> None:
         ctx.app.coins.spend(ctx.nick, ctx.trip, result.data["charge"], reason=reason)
 
 
-def payout(ctx, result, reason: str) -> None:
+def payout(ctx, result, reason: str, game_name: str = "") -> None:
     if not result or not result.data:
         return
     for p in result.data.get("payouts", []):
         ctx.app.coins.add(p["nick"], p["trip"], p["amount"], reason=reason)
+        if game_name:
+            try:
+                ctx.app.stats.record_game(p["nick"], p["trip"], game_name, True)
+            except Exception:
+                pass
     p = result.data.get("payout")
     if p:
         ctx.app.coins.add(p["nick"], p["trip"], p["amount"], reason=reason)
+        if game_name:
+            try:
+                ctx.app.stats.record_game(p["nick"], p["trip"], game_name, True)
+            except Exception:
+                pass
 
 
-def handle_win(ctx, result, reward: int, reason: str) -> None:
-    """单人游戏胜利：给当前玩家发奖并回复。"""
+def handle_win(ctx, result, reward: int, reason: str, game_name: str = "") -> None:
+    """单人游戏胜利：给当前玩家发奖并回复，同时记录游戏统计。"""
     msg = result.message
-    if result and result.data and result.data.get("win") and reward:
+    won = bool(result and result.data and result.data.get("win"))
+    if won and reward:
         ctx.app.coins.add(ctx.nick, ctx.trip, reward, reason=reason)
         msg += f"\n[OK] +{reward} 金币"
+    # 记录游戏统计（胜/负）
+    if game_name:
+        try:
+            ctx.app.stats.record_game(ctx.nick, ctx.trip, game_name, won)
+        except Exception:
+            pass
     ctx.reply(msg)
 
 

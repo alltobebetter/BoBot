@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 from storage.db import Database
 
@@ -31,13 +31,3 @@ class KVStore:
 
     def delete(self, namespace: str, key: str) -> None:
         self.db.execute("DELETE FROM kv WHERE namespace=? AND key=?", (namespace, key))
-
-    def all(self, namespace: str) -> Dict[str, Any]:
-        rows = self.db.query("SELECT key, value FROM kv WHERE namespace=?", (namespace,))
-        out: Dict[str, Any] = {}
-        for r in rows:
-            try:
-                out[r["key"]] = json.loads(r["value"])
-            except Exception:
-                continue
-        return out

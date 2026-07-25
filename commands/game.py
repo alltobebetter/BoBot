@@ -87,6 +87,10 @@ def register(router):
         if result.data and result.data.get("win") and R.wordle_win:
             ctx.app.coins.add(ctx.nick, ctx.trip, R.wordle_win, reason="Wordle 胜利")
             msg += f"\n[OK] +{R.wordle_win} 金币"
+        try:
+            ctx.app.stats.record_game(ctx.nick, ctx.trip, "wordle", bool(result.data and result.data.get("win")))
+        except Exception:
+            pass
         ctx.reply(msg)
 
     # ---------- 猜数字 ----------
@@ -100,7 +104,7 @@ def register(router):
         if n is None:
             ctx.reply("用法：g <数字>")
             return
-        handle_win(ctx, ctx.app.games.guess.guess(n), R.guess_win, "猜数字胜利")
+        handle_win(ctx, ctx.app.games.guess.guess(n), R.guess_win, "猜数字胜利", "guess")
 
     # ---------- 1A2B ----------
     @router.command("number", "1a2b", help="1A2B（n 猜）", category="游戏")
@@ -112,7 +116,7 @@ def register(router):
         if not ctx.args:
             ctx.reply("用法：n <4位不重复数字>")
             return
-        handle_win(ctx, ctx.app.games.number.guess(ctx.args[0]), R.number_win, "1A2B 胜利")
+        handle_win(ctx, ctx.app.games.number.guess(ctx.args[0]), R.number_win, "1A2B 胜利", "number")
 
     # ---------- 成语接龙 ----------
     @router.command("idiom", help="成语接龙（i 接龙）", category="游戏")
@@ -137,7 +141,7 @@ def register(router):
             ctx.reply("用法：i <成语>")
             return
         reward = R.idiom_win[-1] if R.idiom_win else 30
-        handle_win(ctx, ctx.app.games.idiom.submit(ctx.args[0]), reward, "成语接龙")
+        handle_win(ctx, ctx.app.games.idiom.submit(ctx.args[0]), reward, "成语接龙", "idiom")
 
     # ---------- 骰子 ----------
     @router.command("dice", help="骰子对赌 dice <注> | join <注> | roll", category="游戏")
@@ -149,7 +153,7 @@ def register(router):
         sub = ctx.args[0].lower()
         if sub == "roll":
             r = g.roll()
-            payout(ctx, r, "骰子胜利")
+            payout(ctx, r, "骰子胜利", "dice")
             ctx.reply(r.message)
             return
         if sub == "status":
@@ -228,12 +232,12 @@ def register(router):
             return
         if sub == "fold":
             r = g.fold(ctx.nick, ctx.trip)
-            payout(ctx, r, "炸金花胜利")
+            payout(ctx, r, "炸金花胜利", "zhajinhua")
             ctx.reply(r.message)
             return
         if sub == "open":
             r = g.open()
-            payout(ctx, r, "炸金花胜利")
+            payout(ctx, r, "炸金花胜利", "zhajinhua")
             ctx.reply(r.message)
             return
         ctx.reply("未知子命令，zjh 查看用法")
@@ -266,6 +270,10 @@ def register(router):
             r = g.play(ctx.nick, ctx.trip, ctx.args[1], color)
             if r and r.data and r.data.get("win"):
                 ctx.app.coins.add(ctx.nick, ctx.trip, R.uno_win, reason="UNO 胜利")
+                try:
+                    ctx.app.stats.record_game(ctx.nick, ctx.trip, "uno", True)
+                except Exception:
+                    pass
                 ctx.reply(r.message + f"\n[OK] +{R.uno_win} 金币")
             else:
                 ctx.reply(r.message)

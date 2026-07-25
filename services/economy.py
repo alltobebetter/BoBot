@@ -23,10 +23,6 @@ class CoinService:
     def balance(self, nick: str, trip: str) -> int:
         return self.users.get_or_create(nick, trip)["coins"]
 
-    def balance_by_key(self, key: str) -> int:
-        row = self.users.get(key)
-        return row["coins"] if row else 0
-
     def _log(self, key: str, amount: int, balance: int, reason: str) -> None:
         self.db.execute(
             "INSERT INTO transactions(user_key,amount,balance,reason,ts) VALUES(?,?,?,?,?)",

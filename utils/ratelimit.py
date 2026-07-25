@@ -20,9 +20,3 @@ class RateLimiter:
             return False
         dq.append(now)
         return True
-
-    def retry_after(self, key: str) -> int:
-        dq = self._calls[key]
-        if not dq:
-            return 0
-        return max(0, int(self.window - (time.time() - dq[0])))

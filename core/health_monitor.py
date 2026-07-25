@@ -95,17 +95,3 @@ class HealthMonitor:
             self._last_activity = time.time()
         except Exception as e:
             log.error("重连失败", exc=e)
-
-    def get_status(self) -> dict:
-        uptime = 0
-        if self.stats["uptime_start"]:
-            uptime = int(time.time() - self.stats["uptime_start"])
-        return {
-            "running": self.running,
-            "connected": self.bot.conn.is_connected if self.bot else False,
-            "uptime": uptime,
-            "last_activity": int(time.time() - self._last_activity),
-            "checks": self.stats["checks"],
-            "reconnects": self.stats["reconnects"],
-            "failures": self.stats["failures"],
-        }

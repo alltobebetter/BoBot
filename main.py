@@ -1,4 +1,4 @@
-"""AIBoB v4 入口。
+"""AIBoB 入口。
 
 HackChat 多功能机器人：经济、游戏、AI 对话。
 统一后端存储（SQLite）、统一命令路由、统一 Result 返回。
@@ -19,7 +19,7 @@ def main() -> None:
     app = App()
     router = build_router(app)
     bot = Bot(router, app)
-    log.info("AIBoB v4 启动中...")
+    log.info("AIBoB 启动中...")
 
     # 每日总结定时器
     app.digest.start_scheduler(bot)

@@ -28,9 +28,6 @@ class UserManager:
     def get(self, key: str) -> Optional[Dict]:
         return self.db.query_one("SELECT * FROM users WHERE user_key=?", (key,))
 
-    def touch(self, nick: str, trip: str) -> None:
-        self.get_or_create(nick, trip)
-
     # ---- 自定义欢迎词 ----
     def set_welcome(self, nick: str, trip: str, text: Optional[str]) -> Result:
         u = self.get_or_create(nick, trip)
