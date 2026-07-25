@@ -149,8 +149,6 @@ class ApiConfig:
     supabase_key: str = os.getenv("SUPABASE_SERVICE_KEY", "")
     supabase_bucket: str = os.getenv("SUPABASE_BUCKET", "Code")
     code_preview_base: str = os.getenv("CODE_PREVIEW_BASE", "https://bob.supage.eu.org/code")
-    # AI 并发上限（256MB/0.25CPU 机器默认 3，IO 密集场景够用且留有余量）
-    ai_concurrency: int = _int("AI_CONCURRENCY", 3)
 
     @property
     def ai_enabled(self) -> bool:
