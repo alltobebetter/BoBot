@@ -91,6 +91,28 @@ def register(router):
         ctx.app.users.set_welcome(ctx.nick, ctx.trip, ctx.arg_str)
         ctx.reply(f"[OK] 欢迎词已设置（花费 {price} 金币）")
 
+    @router.command("color", "颜色", help="设置昵称颜色 color <hex|reset>", category="经济")
+    def color(ctx):
+        if not ctx.args:
+            ctx.reply("用法：color <十六进制颜色> 或 color reset\n示例：color FF6600（橙色）, color 00FF00（绿色）")
+            return
+        target = ctx.args[0].upper().replace("#", "")
+        if target == "RESET":
+            ctx.bot.conn.change_color("RESET")
+            ctx.reply("[OK] 已重置昵称颜色")
+            return
+        # 验证 hex 颜色：3 或 6 位 0-9A-F
+        import re
+        if not re.match(r'^[0-9A-F]{3}([0-9A-F]{3})?$', target):
+            ctx.reply("颜色格式无效，请输入 3 或 6 位十六进制（如 FF6600）")
+            return
+        # 消耗颜色卡
+        if not ctx.app.inventory.use(ctx.user_key, "color_card"):
+            ctx.reply("你没有昵称颜色卡，商店购买：buy color_card")
+            return
+        ctx.bot.conn.change_color(target)
+        ctx.reply(f"[OK] 昵称颜色已设置为 #{target}")
+
     @router.command("stats", help="聊天统计 stats [week|total]", category="信息")
     def stats(ctx):
         if ctx.args and ctx.args[0].lower() == "week":

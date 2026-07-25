@@ -44,6 +44,53 @@ def register(router):
         if ctx.arg_str:
             ctx.bot.say(ctx.arg_str)
 
+    @router.command("serverstats", "sstats", help="（管理员）服务器统计", category="管理")
+    def serverstats(ctx):
+        if not ctx.is_admin:
+            ctx.reply("[ERR] 仅管理员可用")
+            return
+        ctx.reply("[INFO] 正在请求服务器统计...")
+        ctx.bot.conn.request_stats()
+
+        import threading
+        import time
+
+        def _worker():
+            time.sleep(2)
+            stats = ctx.bot._last_server_stats
+            if stats:
+                ctx.reply(
+                    f"[INFO] 服务器统计\n"
+                    f"连接数：{stats.get('users', '?')}\n"
+                    f"频道数：{stats.get('channels', '?')}\n"
+                    f"总加入：{stats.get('joins', '?')}\n"
+                    f"总消息：{stats.get('messages', '?')}\n"
+                    f"运行时间：{stats.get('uptime', '?')}"
+                )
+            else:
+                ctx.reply("[ERR] 未收到服务器统计响应")
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    @router.command("changenick", "nick", help="（管理员）更改机器人昵称 changenick <新昵称>", category="管理")
+    def changenick(ctx):
+        if not ctx.is_admin:
+            ctx.reply("[ERR] 仅管理员可用")
+            return
+        if not ctx.args:
+            ctx.reply(f"当前昵称：{ctx.bot.nick}\n用法：changenick <新昵称>")
+            return
+        new_nick = ctx.args[0]
+        # 验证昵称格式：1-24 位字母数字下划线
+        import re
+        if not re.match(r'^[a-zA-Z0-9_]{1,24}$', new_nick):
+            ctx.reply("昵称只能包含字母、数字、下划线，1-24 位")
+            return
+        old_nick = ctx.bot.nick
+        ctx.bot.conn.change_nick(new_nick)
+        ctx.bot.nick = new_nick
+        ctx.reply(f"[OK] 昵称已更改：{old_nick} → {new_nick}")
+
     @router.command("admin", help="（管理员）系统管理 admin <health|perf|clearai|cleanhist>", category="管理")
     def admin(ctx):
         if not ctx.is_admin:
@@ -55,7 +102,9 @@ def register(router):
                 "• admin health - 系统健康检查\n"
                 "• admin perf - 性能监控\n"
                 "• admin clearai - 清除所有人 AI 聊天记录\n"
-                "• admin cleanhist [天数] - 清理旧聊天记录"
+                "• admin cleanhist [天数] - 清理旧聊天记录\n"
+                "• serverstats - 服务器统计\n"
+                "• changenick <昵称> - 更改机器人昵称"
             )
             return
         sub = ctx.args[0].lower()

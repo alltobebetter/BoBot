@@ -54,9 +54,33 @@ class Connection:
                 except Exception as e:
                     log.warning("发送失败", error=str(e))
 
-    def update_message(self, custom_id: str, text: str) -> None:
-        """更新已发送消息的内容（需要发送时带 customId）。"""
-        self.send({"cmd": "updateMessage", "customId": custom_id, "text": text})
+    def update_message(self, custom_id: str, text: str, mode: str = "overwrite") -> None:
+        """更新已发送消息的内容（需要发送时带 customId）。
+
+        支持四种模式（对应 hack.chat 服务器 updateMessage 命令）：
+        - overwrite: 替换全部内容（默认）
+        - append: 追加到消息末尾
+        - prepend: 插入到消息开头
+        - complete: 标记消息完成并从活跃列表移除
+        """
+        self.send({"cmd": "updateMessage", "customId": custom_id, "text": text, "mode": mode})
+
+    def emote(self, text: str) -> None:
+        """发送 emote（动作描述），客户端显示为 * BoB <动作>。"""
+        if text:
+            self.send({"cmd": "emote", "text": str(text)})
+
+    def change_color(self, color: str) -> None:
+        """更改自己的昵称颜色（hex 值如 FF6600 或 RESET）。"""
+        self.send({"cmd": "changecolor", "color": color})
+
+    def change_nick(self, nick: str) -> None:
+        """更改自己的昵称（不需要重连）。"""
+        self.send({"cmd": "changenick", "nick": nick})
+
+    def request_stats(self) -> None:
+        """请求服务器统计信息（morestats 命令）。"""
+        self.send({"cmd": "morestats"})
 
     def force_reconnect(self) -> None:
         """强制关闭当前连接，触发 run() 循环重连。"""

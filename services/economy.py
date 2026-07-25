@@ -136,6 +136,7 @@ class ShopService:
             "double_card": s.double_card_price,
             "skip_card": s.skip_card_price,
             "hint_card": s.hint_card_price,
+            "color_card": s.color_card_price,
             "mystery_box": s.mystery_box_price,
         }
 

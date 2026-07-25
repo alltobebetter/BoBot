@@ -146,7 +146,16 @@ class ApiServer:
                     users = a.bot.online_users if a.bot else {}
                     return {
                         "count": len(users),
-                        "users": [{"nick": n, "trip": t} for n, t in users.items()],
+                        "users": [
+                            {
+                                "nick": n,
+                                "trip": info.get("trip", ""),
+                                "level": info.get("level", 100),
+                                "isBot": info.get("isBot", False),
+                                "color": info.get("color"),
+                            }
+                            for n, info in users.items()
+                        ],
                     }
 
                 # ---- 聊天统计 ----

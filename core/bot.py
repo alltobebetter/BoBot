@@ -1,16 +1,22 @@
 """机器人主体：连接、解析消息、构造上下文、分发。
 
 特性：
+- isBot 标记：join 时声明 Bot 身份，客户端显示机器人图标
 - 昵称后缀：BoB_Cat / BoB_Nova 等随机后缀，重连时换名避免冲突
 - Join 超时检测：4 秒未收到 onlineSet 则判定 join 失败并重连
 - 频道验证：定期 leave+join 检测被静默踢出
+- 完整用户信息：online_users 存储 level/isBot/color 等完整字段
+- updateUser 事件：跟踪用户改名/改色，保持 online_users 同步
+- emote 动作描述：发送 * BoB <动作> 风格的消息
+- warn 精确处理：根据服务器 error id 区分限流/权限/找不到用户
+- 长消息截断：超过服务器限流阈值时自动分条发送
 """
 from __future__ import annotations
 
 import random
 import threading
 import time
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from config import config
 from core.connection import Connection
@@ -41,12 +47,17 @@ class Bot:
 
         # 当前昵称（带随机后缀），重连时会重新生成
         self.nick = self._generate_nick()
-        self.online_users: dict[str, str] = {}  # {nick: trip}
+        self.online_users: Dict[str, Dict[str, Any]] = {}  # {nick: {trip, level, isBot, color, ...}}
         self._join_confirmed = False
         self._intro_sent = False  # 进场自我介绍只发一次
         self._running = False
         self._channel_check_state: Optional[str] = None  # None | "waiting"
         self._last_activity = time.time()
+        # 服务器返回的统计信息（morestats 响应）
+        self._last_server_stats: Optional[dict] = None
+        # session 会话恢复：保存服务器返回的 JWT token，重连时优先尝试恢复
+        self._session_token: Optional[str] = None
+        self._session_pending = False  # True = 正在等待 session 恢复响应
 
         # 连接（ping 检测连接存活，不活跃不重连）
         self.conn = Connection(
@@ -63,16 +74,51 @@ class Bot:
         suffix = random.choice(self.config.bot.nick_suffixes)
         return f"{self.config.bot.name}_{suffix}"
 
+    # ---- 服务器端限流阈值（text.length / 83 / 4，超过 ~8 分触发）----
+    # hack.chat 服务器对 chat 消息按文本长度计算 spam score
+    # 为安全起见，单条消息超过 300 字符时分条发送
+    MAX_MSG_LEN = 300
+
     # ---- 外发 ----
     def say(self, text: str) -> None:
-        if text:
-            self.conn.send({"cmd": "chat", "text": str(text)})
-            try:
-                self.app.history.record(
-                    self.config.bot.room, self.nick, "", str(text),
-                )
-            except Exception:
-                pass
+        if not text:
+            return
+        text = str(text)
+        # 长消息分条发送，避免触发服务器端限流
+        if len(text) <= self.MAX_MSG_LEN:
+            self._send_chat(text)
+        else:
+            for chunk in self._split_message(text, self.MAX_MSG_LEN):
+                self._send_chat(chunk)
+
+    def _send_chat(self, text: str) -> None:
+        """发送单条 chat 消息并记录历史。"""
+        self.conn.send({"cmd": "chat", "text": text})
+        try:
+            self.app.history.record(
+                self.config.bot.room, self.nick, "", text,
+            )
+        except Exception:
+            pass
+
+    @staticmethod
+    def _split_message(text: str, max_len: int):
+        """按换行符智能分条，避免在词中间截断。"""
+        lines = text.split("\n")
+        chunk = ""
+        for line in lines:
+            if len(chunk) + len(line) + 1 > max_len:
+                if chunk:
+                    yield chunk
+                # 单行超长也硬截断
+                while len(line) > max_len:
+                    yield line[:max_len]
+                    line = line[max_len:]
+                chunk = line
+            else:
+                chunk = chunk + "\n" + line if chunk else line
+        if chunk:
+            yield chunk
 
     def whisper(self, nick: str, text: str) -> None:
         if text:
@@ -100,24 +146,51 @@ class Bot:
             return
         self.conn.send({"cmd": "whisper", "nick": nick, "text": str(text), "customId": custom_id})
 
-    def update_message(self, custom_id: str, text: str) -> None:
-        """更新已发送消息的内容，并同步到聊天历史。"""
-        self.conn.update_message(custom_id, str(text))
-        try:
-            self.app.history.update_by_custom_id(
-                self.config.bot.room, custom_id, str(text)
-            )
-        except Exception:
-            pass
+    def update_message(self, custom_id: str, text: str, mode: str = "overwrite") -> None:
+        """更新已发送消息的内容，并同步到聊天历史。
+
+        服务器对活跃消息保留 5 分钟（ACTIVE_TIMEOUT），超时后静默失败。
+        """
+        self.conn.update_message(custom_id, str(text), mode=mode)
+        if mode == "overwrite":
+            try:
+                self.app.history.update_by_custom_id(
+                    self.config.bot.room, custom_id, str(text)
+                )
+            except Exception:
+                pass
+
+    def emote(self, text: str) -> None:
+        """发送动作描述（emote），客户端显示为 * BoB <动作>。
+
+        适用于游戏动作、状态变化等非正式消息，与 chat 视觉上区分。
+        """
+        if text:
+            self.conn.emote(str(text))
+            try:
+                self.app.history.record(
+                    self.config.bot.room, self.nick, "", f"* {str(text)}",
+                )
+            except Exception:
+                pass
 
     # ---- 生命周期回调 ----
     def _send_join(self) -> None:
-        """发送 join 命令并设置超时检测。"""
+        """发送 join 命令并设置超时检测。
+
+        设置 isBot: true，服务器会将级别设为 99（bot），
+        客户端显示机器人图标。
+        """
         self._join_confirmed = False
         nick = self.nick
         if self.config.bot.password:
             nick = f"{nick}#{self.config.bot.password}"
-        self.conn.send({"cmd": "join", "channel": self.config.bot.room, "nick": nick})
+        self.conn.send({
+            "cmd": "join",
+            "channel": self.config.bot.room,
+            "nick": nick,
+            "isBot": True,
+        })
         log.info("加入频道", room=self.config.bot.room, nick=self.nick)
 
         # join 超时检测：4 秒未收到 onlineSet 则重连
@@ -130,8 +203,29 @@ class Bot:
         threading.Thread(target=_check_join, daemon=True).start()
 
     def _on_open(self) -> None:
-        """连接建立后发送 join。"""
-        self._send_join()
+        """连接建立后优先尝试 session 恢复，失败则 join。
+
+        session 恢复可保持昵称不变，避免每次重连换名。
+        服务器 JWT token 有效期 7 天，重连时复用即可。
+        """
+        if self._session_token:
+            log.info("尝试 session 恢复", nick=self.nick)
+            self._session_pending = True
+            self._join_confirmed = False
+            self.conn.send({"cmd": "session", "token": self._session_token})
+
+            # 超时检测：4 秒未收到 session 响应则 fallback 到 join
+            def _check_session():
+                time.sleep(4)
+                if self._session_pending:
+                    log.warning("session 恢复超时，fallback 到 join")
+                    self._session_pending = False
+                    self.nick = self._generate_nick()
+                    self._send_join()
+
+            threading.Thread(target=_check_session, daemon=True).start()
+        else:
+            self._send_join()
 
         # 进场自我介绍（只发一次，重连不发）
         if not self._intro_sent:
@@ -143,10 +237,17 @@ class Bot:
             self._intro_sent = True
 
     def _on_disconnect(self) -> None:
-        """连接断开回调：重新生成昵称，避免重复昵称被限制。"""
+        """连接断开回调。
+
+        如果有 session token，重连时优先尝试恢复（保持昵称不变）；
+        没有 token 或恢复失败时才重新生成昵称。
+        """
         log.warning("与聊天室断开连接", old_nick=self.nick)
-        self.nick = self._generate_nick()
-        log.info("重连将使用新昵称", new_nick=self.nick)
+        if not self._session_token:
+            self.nick = self._generate_nick()
+            log.info("重连将使用新昵称", new_nick=self.nick)
+        else:
+            log.info("有 session token，重连将尝试恢复昵称", nick=self.nick)
         self.online_users.clear()
         self._channel_check_state = None
 
@@ -170,40 +271,153 @@ class Bot:
                 self.conn.force_reconnect()
                 return
 
+        # session 命令处理（会话恢复 + join 后的 token 保存）
+        if cmd == "session":
+            token = msg.get("token", "")
+            restored = msg.get("restored", False)
+            if self._session_pending:
+                # 正在等待 session 恢复响应
+                self._session_pending = False
+                if restored and token:
+                    log.info("session 恢复成功，保持昵称", nick=self.nick)
+                    self._session_token = token
+                    # 恢复成功后服务器会自动发送 onlineSet，等待即可
+                else:
+                    log.warning("session 恢复失败，fallback 到 join")
+                    self._session_token = None
+                    self.nick = self._generate_nick()
+                    self._send_join()
+            elif token:
+                # join 成功后服务器返回的 session token，保存供下次重连用
+                self._session_token = token
+                log.info("已保存 session token")
+            return
+
         if cmd == "chat":
             self._handle_chat(msg, is_whisper=False)
         elif cmd == "whisper":
             self._handle_chat(msg, is_whisper=True)
         elif cmd == "info":
-            # info 是服务器信息（含自己发出 whisper 的回显），不当作消息处理
-            text = msg.get("text", "")
-            if text:
-                log.info("服务器信息", text=text[:100])
+            self._handle_info(msg)
+        elif cmd == "emote":
+            # 别人的 emote 动作也记录到聊天历史
+            nick = msg.get("nick", "")
+            if nick and nick != self.nick:
+                try:
+                    self.app.history.record(
+                        self.config.bot.room, nick, msg.get("trip", ""),
+                        msg.get("text", ""),
+                    )
+                except Exception:
+                    pass
         elif cmd == "onlineAdd":
             self._on_join(msg)
         elif cmd == "onlineSet":
             self._join_confirmed = True
             self.online_users.clear()
             for u in msg.get("users", []) or []:
-                nick = u.get("nick", "")
-                trip = u.get("trip", "")
-                if nick:
-                    self.online_users[nick] = trip
-                    self.app.afk.seen(nick, trip)
+                self._add_online_user(u)
             log.info("当前在线", count=len(self.online_users))
         elif cmd == "onlineRemove":
             nick = msg.get("nick", "")
             self.online_users.pop(nick, None)
+        elif cmd == "updateUser":
+            self._on_update_user(msg)
         elif cmd == "warn":
-            log.warning("服务器警告", text=msg.get("text", ""))
+            self._handle_warn(msg)
+
+    def _add_online_user(self, u: dict) -> None:
+        """将服务器返回的用户信息存入 online_users。"""
+        nick = u.get("nick", "")
+        if not nick:
+            return
+        self.online_users[nick] = {
+            "trip": u.get("trip", ""),
+            "level": u.get("level", 100),
+            "isBot": u.get("isBot", False),
+            "color": u.get("color"),
+            "flair": u.get("flair"),
+            "hash": u.get("hash", ""),
+            "userid": u.get("userid"),
+        }
+        self.app.afk.seen(nick, u.get("trip", ""))
+
+    def _on_update_user(self, msg: dict) -> None:
+        """处理 updateUser 事件（用户改名/改色/改flair）。
+
+        服务器在 changecolor/changenick/forcecolor/forceflair 时广播此事件。
+        """
+        new_nick = msg.get("nick", "")
+        # 通过 userid 找到旧昵称
+        userid = msg.get("userid")
+        old_nick = None
+        for n, info in self.online_users.items():
+            if info.get("userid") == userid:
+                old_nick = n
+                break
+        if old_nick and new_nick and old_nick != new_nick:
+            # 用户改名了
+            self.online_users[new_nick] = self.online_users.pop(old_nick)
+            log.info("用户改名", old=old_nick, new=new_nick)
+        # 更新颜色/flair/level
+        if new_nick and new_nick in self.online_users:
+            if "color" in msg:
+                self.online_users[new_nick]["color"] = msg.get("color")
+            if "flair" in msg:
+                self.online_users[new_nick]["flair"] = msg.get("flair")
+            if "level" in msg:
+                self.online_users[new_nick]["level"] = msg.get("level")
+
+    def _handle_info(self, msg: dict) -> None:
+        """处理服务器 info 消息。
+
+        根据 id 字段区分不同类型：
+        - STATS_FULL (1005): morestats 返回的统计信息
+        - NICK_CHANGED (1001): 用户改名通知
+        - MOTD (1004): 每日消息
+        """
+        text = msg.get("text", "")
+        info_id = msg.get("id")
+        if info_id == 1005:
+            # morestats 响应，保存完整数据
+            self._last_server_stats = {
+                "users": msg.get("users", 0),
+                "channels": msg.get("chans", 0),
+                "joins": msg.get("joins", 0),
+                "messages": msg.get("messages", 0),
+                "banned": msg.get("banned", 0),
+                "kicked": msg.get("kicked", 0),
+                "uptime": msg.get("uptime", ""),
+                "text": text,
+            }
+            log.info("收到服务器统计", users=msg.get("users"), channels=msg.get("chans"))
+        elif text:
+            log.info("服务器信息", text=text[:100])
+
+    def _handle_warn(self, msg: dict) -> None:
+        """根据 warn id 精确处理服务器警告。
+
+        hack.chat 服务器 error id 对照（_Constants.js）：
+        - 11: RATELIMIT（发送太快）
+        - 12: UNKNOWN_USER（找不到用户）
+        - 13: PERMISSION（权限不足）
+        - 16: UNKNOWN_CMD（未知命令）
+        - 17: INVALID_PAYLOAD（无效数据）
+        """
+        text = msg.get("text", "")
+        warn_id = msg.get("id")
+        if warn_id == 11:
+            log.warning("服务器限流", text=text)
+        elif warn_id == 12:
+            log.warning("服务器：找不到用户", text=text)
+        else:
+            log.warning("服务器警告", text=text, id=warn_id)
 
     def _on_join(self, msg: dict) -> None:
         nick = msg.get("nick", "")
-        trip = msg.get("trip", "")
         if not nick:
             return
-        self.online_users[nick] = trip
-        self.app.afk.seen(nick, trip)
+        self._add_online_user(msg)
 
         # 三层欢迎逻辑（同 BoBot 原版）
         welcome = self.app.users.welcome_for(nick)

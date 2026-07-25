@@ -15,6 +15,7 @@ ITEMS = {
     "double_card": {"name": "签到翻倍卡", "desc": "下次签到金币翻倍"},
     "skip_card": {"name": "成语跳过卡", "desc": "成语接龙跳过一次"},
     "hint_card": {"name": "Wordle提示卡", "desc": "获得一个字母提示"},
+    "color_card": {"name": "昵称颜色卡", "desc": "自定义昵称颜色"},
 }
 
 

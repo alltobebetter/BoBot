@@ -64,7 +64,8 @@ def register(router):
                 if not _send_wordle_image(ctx, g):
                     ctx.reply(result.message)
                 return
-        ctx.reply(g.start().message)
+        result = g.start()
+        ctx.bot.emote(result.message)
 
     @router.command("w", help="Wordle 猜词 w <单词>", category="游戏")
     def w_guess(ctx):
@@ -96,7 +97,7 @@ def register(router):
     # ---------- 猜数字 ----------
     @router.command("guess", help="猜数字 1-100（g 猜）", category="游戏")
     def guess_cmd(ctx):
-        ctx.reply(ctx.app.games.guess.start().message)
+        ctx.bot.emote(ctx.app.games.guess.start().message)
 
     @router.command("g", help="g <数字>", category="游戏")
     def g_guess(ctx):
@@ -109,7 +110,7 @@ def register(router):
     # ---------- 1A2B ----------
     @router.command("number", "1a2b", help="1A2B（n 猜）", category="游戏")
     def number_cmd(ctx):
-        ctx.reply(ctx.app.games.number.start().message)
+        ctx.bot.emote(ctx.app.games.number.start().message)
 
     @router.command("n", help="n <4位数字>", category="游戏")
     def n_guess(ctx):
@@ -154,7 +155,7 @@ def register(router):
         if sub == "roll":
             r = g.roll()
             payout(ctx, r, "骰子胜利", "dice")
-            ctx.reply(r.message)
+            ctx.bot.emote(r.message)
             return
         if sub == "status":
             ctx.reply(g.status().message)
@@ -207,7 +208,7 @@ def register(router):
             ctx.reply(r.message)
             return
         if sub == "deal":
-            ctx.reply(g.deal().message)
+            ctx.bot.emote(g.deal().message)
             return
         if sub == "look":
             ctx.whisper(g.look(ctx.nick, ctx.trip).message)
@@ -254,8 +255,8 @@ def register(router):
             ctx.reply(g.start(ctx.nick, ctx.trip).message)
         elif sub == "join":
             ctx.reply(g.join(ctx.nick, ctx.trip).message)
-        elif sub == "begin":
-            ctx.reply(g.begin().message)
+        if sub == "begin":
+            ctx.bot.emote(g.begin().message)
         elif sub == "hand":
             ctx.whisper(g.hand(ctx.nick, ctx.trip).message)
         elif sub == "status":

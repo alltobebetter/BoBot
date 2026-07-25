@@ -199,6 +199,7 @@ class ShopConfig:
     double_card_price: int = _int("SHOP_DOUBLE_CARD_PRICE", 60)
     skip_card_price: int = _int("SHOP_SKIP_CARD_PRICE", 40)
     hint_card_price: int = _int("SHOP_HINT_CARD_PRICE", 30)
+    color_card_price: int = _int("SHOP_COLOR_CARD_PRICE", 50)
     mystery_box_price: int = _int("SHOP_MYSTERY_BOX_PRICE", 80)
 
 

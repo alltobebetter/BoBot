@@ -8,6 +8,13 @@ from utils.text import now
 
 
 def register(router):
+    @router.command("me", help="发送动作描述 me <动作>", category="娱乐")
+    def me(ctx):
+        if not ctx.arg_str:
+            ctx.reply("用法：me <动作描述>")
+            return
+        ctx.bot.emote(f"{ctx.nick} {ctx.arg_str}")
+
     @router.command("afk", help="设置离开 afk [原因]", category="其他")
     def afk(ctx):
         ctx.reply(ctx.app.afk.set(ctx.user_key, ctx.nick, ctx.arg_str).message)
