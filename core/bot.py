@@ -76,8 +76,8 @@ class Bot:
 
     # ---- 服务器端限流阈值（text.length / 83 / 4，超过 ~8 分触发）----
     # hack.chat 服务器对 chat 消息按文本长度计算 spam score
-    # 为安全起见，单条消息超过 300 字符时分条发送
-    MAX_MSG_LEN = 300
+    # 单条消息上限 2999 字符，设 2000 留余量，仅超长消息才分条
+    MAX_MSG_LEN = 2000
 
     # ---- 外发 ----
     def say(self, text: str) -> None:
