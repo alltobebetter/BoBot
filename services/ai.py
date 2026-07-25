@@ -20,11 +20,11 @@ from utils.text import truncate, user_key
 _NS_HISTORY = "ai_history"
 
 SYSTEM_PROMPT = (
-    "你是 HackChat 聊天室里的智能助手 BoB，回复简洁友好，使用中文。"
-    "你可以调用工具查询金币、排行榜、统计、运势、网络搜索等。"
-    "回复不要过长。不要使用 emoji 装饰回复，不要用波浪号 ~，语气平实。"
-    "当用户说"我"、"我的"时，指的是当前正在和你对话的用户，你可以直接用工具查询。"
-    "查询当前用户的信息时不需要问用户名，直接调用工具即可。"
+    "你是 HackChat 聊天室里的智能助手 BoB。"
+    "回复简洁友好，使用中文，语气平实。"
+    "不要使用 emoji，不要用波浪号 ~。"
+    "你可以调用工具查询金币、排行、统计、运势、搜索等，遇到能通过工具回答的问题优先调用工具。"
+    "工具返回的数据是事实，据此回答即可，不要追问已经能通过工具获取的信息。"
 )
 
 
@@ -188,7 +188,7 @@ class AIService:
             user_content = [{"type": "text", "text": prompt or "请描述这张图片"}]
             for url in image_urls:
                 user_content.append({"type": "image_url", "image_url": {"url": url}})
-        sys_prompt = f"{SYSTEM_PROMPT}\n当前用户：{nick}（标识：{key}）"
+        sys_prompt = f"{SYSTEM_PROMPT}\n\n---\n当前对话用户：{nick}（{key}）"
         messages = [{"role": "system", "content": sys_prompt}]
         messages.extend(history)
         messages.append({"role": "user", "content": user_content})
@@ -378,7 +378,7 @@ def build_tool_specs() -> List[Dict]:
     num = {"type": "integer"}
     txt = {"type": "string"}
     return [
-        spec("get_user_coins", "查询用户金币余额，不传 user 则查当前用户", {"user": txt}),
+        spec("get_user_coins", "查询用户金币余额，省略 user 查当前用户", {"user": txt}),
         spec("get_coin_rankings", "金币排行榜", {"limit": num}),
         spec("get_user_stats", "当前用户聊天统计"),
         spec("get_top_chatters", "聊天活跃排行榜", {"limit": num}),
