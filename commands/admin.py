@@ -139,15 +139,16 @@ def _health(ctx):
         # AI 状态
         ai_providers = [p.name for p in ctx.app.ai.providers] if ctx.app.ai.enabled else []
 
-        max_ai = ctx.app.ai.max_concurrency
-        active_ai = max_ai - ctx.app.ai.concurrency_available
+        active_ai = ctx.app.ai.active_count
+        mem_pct = ctx.app.ai.mem_percent
+        mem_status = "可用" if ctx.app.ai.mem_ok else "紧张"
         ctx.reply(
             f"[INFO] 系统健康检查\n"
             f"数据库：{'OK' if db_ok else 'ERR'}\n"
             f"在线用户：{online}\n"
             f"今日消息：{today_msgs}\n"
             f"AI Providers：{', '.join(ai_providers) or '未配置'}\n"
-            f"AI 活跃：{active_ai}/{max_ai}"
+            f"AI 活跃：{active_ai} | 内存：{mem_pct}%（{mem_status}）"
         )
     except Exception as e:
         ctx.reply(f"健康检查失败：{e}")
@@ -162,14 +163,15 @@ def _perf(ctx):
         mem_mb = process.memory_info().rss / 1024 / 1024
         threads = process.num_threads()
 
-        max_ai = ctx.app.ai.max_concurrency
-        active_ai = max_ai - ctx.app.ai.concurrency_available
+        active_ai = ctx.app.ai.active_count
+        mem_pct = ctx.app.ai.mem_percent
+        mem_status = "可用" if ctx.app.ai.mem_ok else "紧张"
         ctx.reply(
             f"[INFO] 性能监控\n"
             f"CPU：{cpu:.1f}%\n"
             f"内存：{mem_mb:.1f} / 256 MB\n"
             f"线程数：{threads}\n"
-            f"AI 活跃：{active_ai}/{max_ai}"
+            f"AI 活跃：{active_ai} | 内存：{mem_pct}%（{mem_status}）"
         )
     except ImportError:
         ctx.reply("需要安装 psutil：pip install psutil")

@@ -35,12 +35,9 @@ class AIService:
         self._providers: List[Provider] = config.api.providers
         self._client_cache: Dict[str, Any] = {}  # key: provider.name
         self.tools = build_tool_specs()
-        # 动态并发控制：后台监测内存，紧张时自动降级，空闲时恢复
-        self._hard_limit = config.api.ai_concurrency
-        self._effective_limit = self._hard_limit
-        self._active = 0
+        # 不再有并发数限制，改为实时内存判断：每次请求来时看内存够不够
+        self._active = 0  # 当前活跃请求数（仅用于状态展示，不作为限制）
         self._lock = threading.Lock()
-        threading.Thread(target=self._resource_monitor, daemon=True).start()
 
     # ---- 历史 ----
     def _load_history(self, key: str) -> List[Dict]:
@@ -71,51 +68,37 @@ class AIService:
         return self._providers
 
     @property
-    def concurrency_available(self) -> int:
-        """当前可用的 AI 并发槽位数。"""
+    def active_count(self) -> int:
+        """当前活跃的 AI 请求数。"""
         with self._lock:
-            return max(0, self._effective_limit - self._active)
+            return self._active
 
     @property
-    def max_concurrency(self) -> int:
-        """当前生效的并发上限（可能因资源紧张而低于配置值）。"""
-        return self._effective_limit
+    def mem_ok(self) -> bool:
+        """内存是否允许启动新的 AI 请求（< 90% 可用）。"""
+        try:
+            import psutil
+            return psutil.virtual_memory().percent < 90
+        except Exception:
+            return True  # psutil 不可用时放行
 
-    def _resource_monitor(self):
-        """后台监测内存使用率，每 30 秒动态调整并发上限。
-
-        256MB 机器的阈值：
-        - 内存 > 85%：降到 1（保命，防止 OOM）
-        - 内存 > 70%：降到 2（降负荷）
-        - 内存 <= 70%：恢复配置值（正常）
-        psutil 不可用时保持配置值不变。
-        """
-        while True:
-            try:
-                import psutil
-                mem = psutil.virtual_memory()
-                old = self._effective_limit
-                if mem.percent > 85:
-                    self._effective_limit = 1
-                elif mem.percent > 70:
-                    self._effective_limit = min(2, self._hard_limit)
-                else:
-                    self._effective_limit = self._hard_limit
-                if old != self._effective_limit:
-                    log.info("AI 并发调整", old=old, new=self._effective_limit,
-                             mem_percent=round(mem.percent, 1))
-            except Exception:
-                pass
-            time.sleep(30)
+    @property
+    def mem_percent(self) -> float:
+        """当前内存使用率（用于展示）。"""
+        try:
+            import psutil
+            return round(psutil.virtual_memory().percent, 1)
+        except Exception:
+            return 0.0
 
     def _acquire(self, timeout: float = 30.0) -> bool:
-        """获取并发槽位，超时返回 False。"""
+        """检查内存是否允许启动 AI 请求，不允许则等待超时。"""
         deadline = time.time() + timeout
         while True:
-            with self._lock:
-                if self._active < self._effective_limit:
+            if self.mem_ok:
+                with self._lock:
                     self._active += 1
-                    return True
+                return True
             if time.time() >= deadline:
                 return False
             time.sleep(0.5)
