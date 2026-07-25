@@ -23,6 +23,8 @@ SYSTEM_PROMPT = (
     "你是 HackChat 聊天室里的智能助手 BoB，回复简洁友好，使用中文。"
     "你可以调用工具查询金币、排行榜、统计、运势、网络搜索等。"
     "回复不要过长。不要使用 emoji 装饰回复，不要用波浪号 ~，语气平实。"
+    "当用户说"我"、"我的"时，指的是当前正在和你对话的用户，你可以直接用工具查询。"
+    "查询当前用户的信息时不需要问用户名，直接调用工具即可。"
 )
 
 
@@ -186,7 +188,8 @@ class AIService:
             user_content = [{"type": "text", "text": prompt or "请描述这张图片"}]
             for url in image_urls:
                 user_content.append({"type": "image_url", "image_url": {"url": url}})
-        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        sys_prompt = f"{SYSTEM_PROMPT}\n当前用户：{nick}（标识：{key}）"
+        messages = [{"role": "system", "content": sys_prompt}]
         messages.extend(history)
         messages.append({"role": "user", "content": user_content})
         ctx = {"nick": nick, "trip": trip}
@@ -375,7 +378,7 @@ def build_tool_specs() -> List[Dict]:
     num = {"type": "integer"}
     txt = {"type": "string"}
     return [
-        spec("get_user_coins", "查询用户金币余额", {"user": txt}),
+        spec("get_user_coins", "查询用户金币余额，不传 user 则查当前用户", {"user": txt}),
         spec("get_coin_rankings", "金币排行榜", {"limit": num}),
         spec("get_user_stats", "当前用户聊天统计"),
         spec("get_top_chatters", "聊天活跃排行榜", {"limit": num}),
