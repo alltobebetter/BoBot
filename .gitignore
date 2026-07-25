@@ -43,5 +43,8 @@ desktop.ini
 # --- 旧代码备份（本地保留，不入库）---
 bob_original/
 
+# --- hack.chat 源码参考（本地保留，不入库）---
+main-master/
+
 # --- 内部文档（不公开）---
 功能与指令手册.md

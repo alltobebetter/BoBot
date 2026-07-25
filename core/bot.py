@@ -3,18 +3,18 @@
 特性：
 - 昵称后缀：BoB_Cat / BoB_Nova 等随机后缀，重连时换名避免冲突
 - Join 超时检测：4 秒未收到 onlineSet 则判定 join 失败并重连
-- 健康监控：不活跃超时自动重连、退避策略、统计追踪
+- 频道验证：定期 leave+join 检测被静默踢出
 """
 from __future__ import annotations
 
 import random
 import threading
 import time
+from typing import Optional
 
 from config import config
 from core.connection import Connection
 from core.context import Context
-from core.health_monitor import HealthMonitor
 from utils.logger import log
 
 
@@ -44,18 +44,17 @@ class Bot:
         self.online_users: dict[str, str] = {}  # {nick: trip}
         self._join_confirmed = False
         self._intro_sent = False  # 进场自我介绍只发一次
+        self._running = False
+        self._channel_check_state: Optional[str] = None  # None | "waiting"
+        self._last_activity = time.time()
 
-        # 连接 & 健康监控
+        # 连接（ping 检测连接存活，不活跃不重连）
         self.conn = Connection(
             config.bot.server_url,
             self._on_message,
             self._on_open,
             self._on_disconnect,
-        )
-        self.health = HealthMonitor(
-            self,
-            check_interval=config.bot.health_check_interval,
-            inactive_timeout=config.bot.health_inactive_timeout,
+            ping_interval=config.bot.ping_interval,
         )
 
     # ---- 昵称生成 ----
@@ -112,8 +111,8 @@ class Bot:
             pass
 
     # ---- 生命周期回调 ----
-    def _on_open(self) -> None:
-        """连接建立后发送 join。"""
+    def _send_join(self) -> None:
+        """发送 join 命令并设置超时检测。"""
         self._join_confirmed = False
         nick = self.nick
         if self.config.bot.password:
@@ -125,10 +124,14 @@ class Bot:
         def _check_join():
             time.sleep(4)
             if not self._join_confirmed:
-                log.warning("连接后 4 秒未收到 onlineSet，判定 join 失败，重连")
+                log.warning("join 超时，未收到 onlineSet，重连")
                 self.conn.force_reconnect()
 
         threading.Thread(target=_check_join, daemon=True).start()
+
+    def _on_open(self) -> None:
+        """连接建立后发送 join。"""
+        self._send_join()
 
         # 进场自我介绍（只发一次，重连不发）
         if not self._intro_sent:
@@ -145,14 +148,27 @@ class Bot:
         self.nick = self._generate_nick()
         log.info("重连将使用新昵称", new_nick=self.nick)
         self.online_users.clear()
+        self._channel_check_state = None
 
     # ---- 消息处理 ----
     def _on_message(self, msg: dict) -> None:
         cmd = msg.get("cmd")
+        self._last_activity = time.time()
 
-        # 记录活动（健康监控）
-        if cmd in ("chat", "whisper", "onlineAdd", "onlineRemove", "onlineSet", "info", "warn"):
-            self.health.record_activity()
+        # 频道验证响应处理
+        if self._channel_check_state == "waiting":
+            if cmd == "session":
+                # leave 成功，仍在原频道，立即 join 回来
+                log.info("频道验证：leave 成功，重新 join")
+                self._channel_check_state = None
+                self._send_join()
+                return
+            elif cmd == "warn" and "not in that channel" in (msg.get("text") or "").lower():
+                # 被 kick 了，不在原频道
+                log.warning("频道验证：不在原频道（被踢），强制重连")
+                self._channel_check_state = None
+                self.conn.force_reconnect()
+                return
 
         if cmd == "chat":
             self._handle_chat(msg, is_whisper=False)
@@ -267,16 +283,50 @@ class Bot:
                 return parts[0].lower(), parts[1:]
         return None, []
 
+    # ---- 频道验证 ----
+    def _channel_check_loop(self) -> None:
+        """后台线程：定期验证 bot 是否仍在正确频道。
+
+        hack.chat 的 kick 是静默的——不关闭连接，只把用户移到随机频道。
+        被踢的客户端完全收不到通知，ping 照通，但已经不在原频道了。
+        通过 leave + join 主动验证：leave 成功说明还在，立即 join 回来；
+        leave 失败说明被踢了，force_reconnect 重新连接。
+
+        仅在长时间无活动时触发（聊天室热闹时肯定没被踢）。
+        """
+        while self._running:
+            time.sleep(60)
+            if not self._running:
+                break
+            quiet = time.time() - self._last_activity
+            if (self.conn.is_connected and self._join_confirmed
+                    and quiet >= self.config.bot.channel_check_interval):
+                self._verify_channel()
+
+    def _verify_channel(self) -> None:
+        """发送 leave 验证是否在正确频道，等待响应后 join 回来或重连。"""
+        log.info("频道验证：发送 leave", channel=self.config.bot.room)
+        self._channel_check_state = "waiting"
+        self.conn.send({"cmd": "leave", "channel": self.config.bot.room})
+
+        # 5 秒超时
+        def _timeout():
+            time.sleep(5)
+            if self._channel_check_state == "waiting":
+                log.warning("频道验证超时，强制重连")
+                self._channel_check_state = None
+                self.conn.force_reconnect()
+
+        threading.Thread(target=_timeout, daemon=True).start()
+
     # ---- 启动/停止 ----
     def run(self) -> None:
         log.info("机器人启动中...", name=self.config.bot.name, nick=self.nick, version=self.VERSION)
-        self.health.start()
-        try:
-            self.conn.run()
-        finally:
-            self.health.stop()
+        self._running = True
+        threading.Thread(target=self._channel_check_loop, daemon=True).start()
+        self.conn.run()
 
     def stop(self) -> None:
         log.info("机器人停止中...")
-        self.health.stop()
+        self._running = False
         self.conn.stop()

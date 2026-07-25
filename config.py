@@ -72,9 +72,10 @@ class BotConfig:
     admin_users: List[Dict[str, str]] = field(
         default_factory=lambda: _admins(os.getenv("BOT_ADMINS", ""))
     )
-    # 健康监控
-    health_check_interval: int = _int("HEALTH_CHECK_INTERVAL", 10)
-    health_inactive_timeout: int = _int("HEALTH_INACTIVE_TIMEOUT", 300)
+    # WebSocket ping 间隔（秒），用于检测连接存活；ping 失败才重连
+    ping_interval: int = _int("PING_INTERVAL", 30)
+    # 频道验证间隔（秒）：长时间无活动时 leave+join 检测是否被静默踢出
+    channel_check_interval: int = _int("CHANNEL_CHECK_INTERVAL", 1800)
     nick_suffixes: List[str] = field(default_factory=lambda: NICK_SUFFIXES)
     # Web 前端地址（用于命令回复中的引导提示）
     web_url: str = os.getenv("WEB_URL", "https://bob.supage.eu.org")
