@@ -250,7 +250,92 @@ DETAILS: dict[str, str] = {
     ),
     "today": (
         "today\n"
+        "查看今日总结（每日 23:00 自动生成）\n"
+        "\n"
+        "包含：今日消息数、活跃用户、金句精选"
+    ),
+    "onthisday": (
+        "onthisday\n"
         "历史上的今天，随机展示 5 条历史事件"
+    ),
+    "ping": (
+        "ping\n"
+        "测试机器人是否在线\n"
+        "回复 pong"
+    ),
+    "profile": (
+        "profile [昵称]\n"
+        "查看用户画像（基于聊天历史 AI 生成）\n"
+        "\n"
+        "用法：\n"
+        "  profile          查看自己的画像\n"
+        "  profile Alice    查看别人的画像\n"
+        "\n"
+        "需要足够多的聊天记录才能生成"
+    ),
+    "dig": (
+        "dig\n"
+        "随机考古一条旧消息\n"
+        "\n"
+        "从聊天历史中随机抽取一条消息展示"
+    ),
+    "quote": (
+        "quote\n"
+        "随机展示一条金句\n"
+        "\n"
+        "金句来自管理员收藏的精彩发言"
+    ),
+    "star": (
+        "star <昵称> <内容片段>\n"
+        "收藏金句（管理员）\n"
+        "\n"
+        "用法：star Alice 今天天气真好\n"
+        "\n"
+        "收藏后可用 quote 随机展示"
+    ),
+    "friend": (
+        "friend <链接> <标题> <描述> | friend delete\n"
+        "友情链接管理\n"
+        "\n"
+        "用法：\n"
+        "  friend https://example.com 我的网站 这是一个好站\n"
+        "  friend delete    删除自己添加的友链"
+    ),
+    "msg": (
+        "msg <昵称> <内容>\n"
+        "给离线用户留言\n"
+        "\n"
+        "用法：msg Alice 回来后联系我\n"
+        "\n"
+        "对方上线时自动私聊送达"
+    ),
+    "clearai": (
+        "clearai\n"
+        "清空自己的 AI 对话历史\n"
+        "\n"
+        "AI 会从零开始对话，忘记之前的上下文"
+    ),
+    "addcoins": (
+        "addcoins <昵称#trip> <数量>\n"
+        "管理员发放/扣除金币\n"
+        "\n"
+        "用法：\n"
+        "  addcoins Alice#abc123 100    发放 100 金币\n"
+        "  addcoins Alice#abc123 -50     扣除 50 金币"
+    ),
+    "resetgame": (
+        "resetgame\n"
+        "重置所有游戏状态（管理员）\n"
+        "\n"
+        "适用于游戏卡住、状态异常时强制重置\n"
+        "不会清除金币和统计"
+    ),
+    "say": (
+        "say <内容>\n"
+        "让机器人发送指定内容（管理员）\n"
+        "\n"
+        "用法：say 大家好\n"
+        "BoB 会原样发送这条消息"
     ),
     "me": (
         "me <动作描述>\n"
