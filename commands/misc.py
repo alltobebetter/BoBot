@@ -4,7 +4,7 @@ from __future__ import annotations
 import threading
 
 from utils.logger import log
-from utils.text import now
+from utils.text import now, user_key
 
 
 def register(router):
@@ -37,8 +37,8 @@ def register(router):
         except Exception as e:
             ctx.reply(f"[ERR] 获取失败：{e}")
 
-    @router.command("today", help="历史上的今天", category="信息")
-    def today(ctx):
+    @router.command("onthisday", "历史上的今天", help="历史上的今天 onthisday", category="信息")
+    def onthisday(ctx):
         import random
         import time as _time
 
@@ -135,23 +135,23 @@ def register(router):
         seen_r = ctx.app.seen.get_by_nick(target)
         # 3. 身份记录（aka）
         aka_r = ctx.app.identity.lookup_by_nick(target)
-        # 4. 聊天统计
-        try:
-            stat = ctx.app.stats.get(target, "")
-            stat_text = f"消息 {stat.get('messages', 0)} 条，字符 {stat.get('chars', 0)}"
-        except Exception:
-            stat_text = "统计不可用"
-        # 5. 在线用户详情
+        # 4. 在线用户详情
         user_info = ctx.bot.online_users.get(target, {})
         trip = user_info.get("trip", "")
         hash_code = user_info.get("hash", "")
         level = user_info.get("level", "")
         color = user_info.get("color", "")
         is_bot = user_info.get("isBot", False)
+        # 5. 聊天统计
+        stat = ctx.app.stats.get(user_key(target, trip))
+        stat_text = (
+            f"消息 {stat.get('messages', 0)} 条，字符 {stat.get('chars', 0)}"
+            if stat
+            else "暂无统计"
+        )
         # 6. 个人签名（只查在线用户）
         motto_text = ""
         if online and trip:
-            from utils.text import user_key
             motto_text = ctx.app.motto.get(user_key(target, trip)) or ""
 
         lines = [f"[INFO] {target} 的身份卡片"]

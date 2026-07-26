@@ -9,6 +9,7 @@ from typing import Dict, Optional
 
 from config import config
 from core.result import Result
+from games.base import BaseGame
 from storage.kv import KVStore
 
 _NS = "crypto"
@@ -23,10 +24,13 @@ COINS: Dict[str, str] = {
 }
 
 
-class CryptoGame:
+class CryptoGame(BaseGame):
+    """无局内状态（持仓长期保存），继承 BaseGame 只为统一 reset() 接口。"""
+
     name = "crypto"
 
     def __init__(self, kv: KVStore):
+        super().__init__()
         self.kv = kv
 
     @property

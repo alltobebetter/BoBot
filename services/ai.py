@@ -224,7 +224,8 @@ class AIService:
             if client is None:
                 continue
             try:
-                return self._run_loop(client, provider, messages, ctx)
+                # 每个 provider 用独立副本，避免上一个 provider 追加的 tool 消息污染下一次尝试
+                return self._run_loop(client, provider, list(messages), ctx)
             except Exception as e:
                 log.warning(
                     "AI provider 请求失败，尝试下一个",

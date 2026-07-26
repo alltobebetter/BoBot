@@ -280,6 +280,15 @@ class BlackjackGame(BaseGame):
         self._next_player()
         return Result.ok("\n".join(lines))
 
+    def double_cost(self, nick: str, trip: str) -> int:
+        """双倍下注需要额外支付的金币（0 表示当前不可双倍）。"""
+        if self.phase != "playing":
+            return 0
+        player = self._get_current_player(nick, trip)
+        if not player or not player.hand.can_double:
+            return 0
+        return player.hand.bet
+
     def double(self, nick: str, trip: str) -> Result:
         """双倍下注（仅首两张牌）。"""
         if self.phase != "playing":

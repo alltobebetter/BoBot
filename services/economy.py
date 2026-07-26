@@ -33,26 +33,34 @@ class CoinService:
         if amount == 0:
             return Result.ok(data={"balance": self.balance(nick, trip)})
         u = self.users.get_or_create(nick, trip)
-        new_bal = u["coins"] + amount
+        key = u["user_key"]
+        # 原子自增，避免多线程读-改-写丢更新
         self.db.execute(
-            "UPDATE users SET coins=?, updated_at=? WHERE user_key=?",
-            (new_bal, now().isoformat(), u["user_key"]),
+            "UPDATE users SET coins=coins+?, updated_at=? WHERE user_key=?",
+            (amount, now().isoformat(), key),
         )
-        self._log(u["user_key"], amount, new_bal, reason)
+        row = self.db.query_one("SELECT coins FROM users WHERE user_key=?", (key,))
+        new_bal = row["coins"] if row else u["coins"] + amount
+        self._log(key, amount, new_bal, reason)
         return Result.ok(data={"balance": new_bal})
 
     def spend(self, nick: str, trip: str, amount: int, reason: str = "") -> Result:
         if amount <= 0:
             return Result.fail("金额无效")
         u = self.users.get_or_create(nick, trip)
-        if u["coins"] < amount:
-            return Result.fail(f"金币不足（需要 {amount}，你有 {u['coins']}）")
-        new_bal = u["coins"] - amount
-        self.db.execute(
-            "UPDATE users SET coins=?, updated_at=? WHERE user_key=?",
-            (new_bal, now().isoformat(), u["user_key"]),
+        key = u["user_key"]
+        # 带余额条件的原子扣减：余额不足时 rowcount 为 0
+        cur = self.db.execute(
+            "UPDATE users SET coins=coins-?, updated_at=? WHERE user_key=? AND coins>=?",
+            (amount, now().isoformat(), key, amount),
         )
-        self._log(u["user_key"], -amount, new_bal, reason)
+        if cur.rowcount == 0:
+            row = self.db.query_one("SELECT coins FROM users WHERE user_key=?", (key,))
+            have = row["coins"] if row else 0
+            return Result.fail(f"金币不足（需要 {amount}，你有 {have}）")
+        row = self.db.query_one("SELECT coins FROM users WHERE user_key=?", (key,))
+        new_bal = row["coins"] if row else 0
+        self._log(key, -amount, new_bal, reason)
         return Result.ok(data={"balance": new_bal})
 
     def transfer(self, nick: str, trip: str, to_key: str, amount: int) -> Result:
@@ -167,11 +175,13 @@ class ShopService:
             return spend
         key = user_key(nick, trip)
         if item_id == "mystery_box":
-            reward = random.randint(0, max(1, price * 2))
-            self.coins.add(nick, trip, reward, reason="神秘盒子")
+            # 按数量逐个开盒，避免收了 qty 份钱只开一次
+            reward = sum(random.randint(0, max(1, price * 2)) for _ in range(qty))
+            add = self.coins.add(nick, trip, reward, reason="神秘盒子")
             return Result.ok(
-                f"[OK] 打开神秘盒子 x{qty}，获得 {reward} 金币",
-                data={"reward": reward},
+                f"[OK] 打开神秘盒子 x{qty}，花费 {total} 金币，"
+                f"获得 {reward} 金币，余额 {add.data['balance']}",
+                data={"balance": add.data["balance"]},
             )
         self.inventory.add(key, item_id, qty)
         return Result.ok(

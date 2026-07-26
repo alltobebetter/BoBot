@@ -32,7 +32,10 @@ def register(router):
             ctx.reply("[ERR] 仅管理员可用")
             return
         g = ctx.app.games
-        for game in (g.wordle, g.idiom, g.dice, g.guess, g.number, g.zhajinhua, g.uno):
+        for game in (
+            g.wordle, g.idiom, g.dice, g.guess, g.number,
+            g.zhajinhua, g.uno, g.blackjack, g.crypto,
+        ):
             game.reset()
         ctx.reply("[OK] 已重置所有游戏")
 

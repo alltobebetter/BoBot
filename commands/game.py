@@ -141,8 +141,16 @@ def register(router):
         if not ctx.args:
             ctx.reply("用法：i <成语>")
             return
-        reward = R.idiom_win[-1] if R.idiom_win else 30
-        handle_win(ctx, ctx.app.games.idiom.submit(ctx.args[0]), reward, "成语接龙", "idiom")
+        r = ctx.app.games.idiom.submit(ctx.args[0])
+        tier = (r.data or {}).get("tier", -1) if r else -1
+        if tier < 0:
+            ctx.reply(r.message)
+            return
+        tiers = R.idiom_win or [30]
+        reward = tiers[min(tier, len(tiers) - 1)]
+        ctx.app.coins.add(ctx.nick, ctx.trip, reward, reason="成语接龙")
+        ctx.app.stats.record_game(ctx.nick, ctx.trip, "idiom", True)
+        ctx.reply(f"{r.message}\n[OK] +{reward} 金币")
 
     # ---------- 骰子 ----------
     @router.command("dice", help="骰子对赌 dice <注> | join <注> | roll", category="游戏")
@@ -255,7 +263,7 @@ def register(router):
             ctx.reply(g.start(ctx.nick, ctx.trip).message)
         elif sub == "join":
             ctx.reply(g.join(ctx.nick, ctx.trip).message)
-        if sub == "begin":
+        elif sub == "begin":
             ctx.bot.emote(g.begin().message)
         elif sub == "hand":
             ctx.whisper(g.hand(ctx.nick, ctx.trip).message)
@@ -360,6 +368,9 @@ def register(router):
             ctx.reply(r.message)
             _bj_check_settle(ctx, g)
         elif sub in ("double", "d"):
+            cost = g.double_cost(ctx.nick, ctx.trip)
+            if cost and not need_balance(ctx, cost):
+                return
             r = g.double(ctx.nick, ctx.trip)
             if not r:
                 ctx.reply(r.message)

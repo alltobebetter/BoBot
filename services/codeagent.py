@@ -258,7 +258,8 @@ class CodeAgent:
                 continue
             try:
                 with self.app.ai.concurrency_slot():
-                    reply = self._run_loop(client, provider, project, messages)
+                    # 每个 provider 用独立副本，避免上一次尝试追加的 tool 消息污染
+                    reply = self._run_loop(client, provider, project, list(messages))
                 return Result.ok(reply, {"preview": preview})
             except Exception as e:
                 log.warning("CodeAgent provider 失败，尝试下一个",

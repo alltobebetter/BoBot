@@ -23,6 +23,8 @@ from utils.logger import log
 
 _HAN = re.compile(r"^[\u4e00-\u9fff]{4}$")
 _WORD_KEYS = ("word", "idiom", "成语", "name", "title")
+# 发奖里程碑：连接数达到该值时发一档奖励（同一局内每档只发一次）
+_MILESTONES = (3, 6, 10)
 
 
 class IdiomGame(BaseGame):
@@ -39,6 +41,7 @@ class IdiomGame(BaseGame):
         self.current = ""
         self.used: Set[str] = set()
         self.chain = 0
+        self.rewarded = 0
 
     @staticmethod
     def _collect(item, words: Set[str]) -> None:
@@ -88,6 +91,7 @@ class IdiomGame(BaseGame):
             self.current = "一鸣惊人"
         self.used = {self.current}
         self.chain = 0
+        self.rewarded = 0
         self._start_clock()
         mode = "" if self.strict else "（宽松模式：未加载词典）"
         return Result.ok(f"[INFO] 成语接龙开始{mode}，首成语：{self.current}\n接“{self.current[-1]}”字开头的成语")
@@ -108,10 +112,22 @@ class IdiomGame(BaseGame):
         self.used.add(idiom)
         self.chain += 1
         self._start_clock()  # 刷新计时
+        # 只在跨过新里程碑时才告知命令层发奖，tier 为 -1 表示不发奖
+        tier = -1
+        if self.rewarded < len(_MILESTONES) and self.chain >= _MILESTONES[self.rewarded]:
+            tier = self.rewarded
+            self.rewarded += 1
         return Result.ok(
             f"[OK] {idiom}，连接 {self.chain} 个，接“{idiom[-1]}”字",
-            data={"win": True, "chain": self.chain},
+            data={"chain": self.chain, "tier": tier},
         )
+
+    def reset(self) -> None:
+        super().reset()
+        self.current = ""
+        self.used = set()
+        self.chain = 0
+        self.rewarded = 0
 
     def skip(self) -> Result:
         """使用成语跳过卡：换一个首成语。"""
