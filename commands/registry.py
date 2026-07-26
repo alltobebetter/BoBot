@@ -70,9 +70,6 @@ def build_middleware(app):
         if app.afk.is_afk(key) and not (ctx.command == "afk"):
             app.afk.clear(key)
             ctx.bot.say(f"[INFO] {ctx.nick} 回来了")
-        # 3) 命令限流（静默丢弃，不回复，避免 BoB 自己刷屏被服务器踢）
-        if ctx.command and not app.rate_global.allow(key):
-            return False
         return True
 
     return [pre]

@@ -62,6 +62,10 @@ class Router:
             handler = self._fallback
         if handler is None:
             return
+        # 命令限流：只对真正匹配的命令生效，不对 fallback（AI闲聊）生效
+        if handler is not self._fallback:
+            if not ctx.app.rate_global.allow(ctx.user_key):
+                return
         try:
             handler(ctx)
         except Exception as e:
