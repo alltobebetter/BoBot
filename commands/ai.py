@@ -119,12 +119,16 @@ def register(router):
             return
         base_name = ctx.bot.config.bot.name
         current_nick = getattr(ctx.bot, "nick", base_name)
+        # 只在 @BoB 或 @BoB_XXX 时触发，不是消息中包含 bob 就触发
         text_lower = ctx.text.lower()
-        mentioned = base_name.lower() in text_lower or current_nick.lower() in text_lower
+        mentioned = (
+            f"@{base_name.lower()}" in text_lower
+            or f"@{current_nick.lower()}" in text_lower
+        )
         if ctx.is_whisper or mentioned:
             prompt = ctx.text
             for n in (current_nick, base_name):
                 prompt = prompt.replace(f"@{n}", "")
-            prompt = prompt.strip()
+                prompt = prompt.strip()
             if prompt:
                 _do_ai(ctx, prompt)
