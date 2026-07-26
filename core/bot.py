@@ -352,6 +352,13 @@ class Bot:
             "hash": u.get("hash", ""),
             "userid": u.get("userid"),
         }
+        # 记录 hash → nick 昵称映射（用于 aka 身份查询）
+        try:
+            hash_code = u.get("hash", "")
+            if hash_code:
+                self.app.identity.record(nick, hash_code)
+        except Exception:
+            pass
         self.app.afk.seen(nick, u.get("trip", ""))
 
     def _on_update_user(self, msg: dict) -> None:

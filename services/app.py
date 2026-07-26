@@ -14,6 +14,7 @@ from services.economy import CheckinService, CoinService, InventoryService, Shop
 from services.fortune import FortuneService
 from services.friends import FriendsService
 from services.history import HistoryService
+from services.identity import IdentityService, MottoService
 from services.messages import MessageService
 from services.profile import ProfileService
 from services.quotes import QuoteService
@@ -83,6 +84,8 @@ class App:
         self.redpacket = RedPacketService(self.kv, self.coins)
         self.seen = SeenService(self.kv)
         self.look = LookService()
+        self.identity = IdentityService(self.kv)
+        self.motto = MottoService(self.kv)
 
         # 游戏
         self.games = GameRegistry(self.kv)

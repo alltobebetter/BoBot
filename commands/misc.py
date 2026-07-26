@@ -94,6 +94,91 @@ def register(router):
         r = ctx.app.look.get(target)
         ctx.reply(r.message)
 
+    @router.command("aka", help="身份查询 aka <昵称> | aka *<hash>", category="信息")
+    def aka(ctx):
+        if not ctx.args:
+            ctx.reply("用法：aka <昵称> 查历史昵称\naka *<hash> 通过 hash 查")
+            return
+        target = ctx.args[0]
+        if target.startswith("*"):
+            r = ctx.app.identity.lookup_by_hash(target[1:])
+        else:
+            target = target.lstrip("@")
+            r = ctx.app.identity.lookup_by_nick(target)
+        ctx.reply(r.message)
+
+    @router.command("motto", help="个人签名 motto <签名|off>", category="信息")
+    def motto(ctx):
+        if not ctx.args:
+            motto_text = ctx.app.motto.get(ctx.user_key)
+            if motto_text:
+                ctx.reply(f"[INFO] 你的签名：{motto_text}")
+            else:
+                ctx.reply("用法：motto <签名内容>（最多 100 字）\nmotto off 清除签名")
+            return
+        if ctx.args[0].lower() in ("off", "清除", "删除"):
+            ctx.reply(ctx.app.motto.clear(ctx.user_key).message)
+            return
+        text = ctx.arg_str
+        ctx.reply(ctx.app.motto.set(ctx.user_key, text).message)
+
+    @router.command("whois", "who", help="身份卡片 whois <昵称>", category="信息")
+    def whois(ctx):
+        if not ctx.args:
+            ctx.reply("用法：whois <昵称>")
+            return
+        target = ctx.args[0].lstrip("@")
+        # 1. 在线信息（look）
+        look_r = ctx.app.look.get(target)
+        online = look_r.success
+        # 2. 最后发言（seen）
+        seen_r = ctx.app.seen.get_by_nick(target)
+        # 3. 身份记录（aka）
+        aka_r = ctx.app.identity.lookup_by_nick(target)
+        # 4. 聊天统计
+        try:
+            stat = ctx.app.stats.get(target, "")
+            stat_text = f"消息 {stat.get('messages', 0)} 条，字符 {stat.get('chars', 0)}"
+        except Exception:
+            stat_text = "统计不可用"
+        # 5. 在线用户详情
+        user_info = ctx.bot.online_users.get(target, {})
+        trip = user_info.get("trip", "")
+        hash_code = user_info.get("hash", "")
+        level = user_info.get("level", "")
+        color = user_info.get("color", "")
+        is_bot = user_info.get("isBot", False)
+        # 6. 个人签名（只查在线用户）
+        motto_text = ""
+        if online and trip:
+            from utils.text import user_key
+            motto_text = ctx.app.motto.get(user_key(target, trip)) or ""
+
+        lines = [f"[INFO] {target} 的身份卡片"]
+        if trip:
+            lines.append(f"Trip: #{trip}")
+        if hash_code:
+            lines.append(f"Hash: {hash_code}")
+        if level:
+            lines.append(f"Level: {level}")
+        if color:
+            lines.append(f"Color: #{color}")
+        if is_bot:
+            lines.append("Bot: 是")
+        lines.append(f"状态: {'在线' if online else '离线'}")
+        if seen_r.success:
+            lines.append(f"最后发言: {seen_r.message.split('最后发言：')[1].split(chr(10))[0] if '最后发言' in seen_r.message else '未知'}")
+        lines.append(f"统计: {stat_text}")
+        if motto_text:
+            lines.append(f"签名: \"{motto_text}\"")
+        if aka_r.success:
+            # 提取历史昵称
+            aka_lines = aka_r.message.split("\n")
+            for al in aka_lines:
+                if "历史昵称" in al:
+                    lines.append(al.strip())
+        ctx.reply("\n".join(lines))
+
     @router.command("me", help="发送动作描述 me <动作>", category="娱乐")
     def me(ctx):
         if not ctx.arg_str:

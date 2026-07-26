@@ -211,6 +211,37 @@ DETAILS: dict[str, str] = {
         "\n"
         "注：只能查当前在线的用户"
     ),
+    "aka": (
+        "aka <昵称> | aka *<hash>\n"
+        "身份查询，基于 hack.chat 的 hash 记录历史昵称\n"
+        "\n"
+        "用法：\n"
+        "  aka Alice       查 Alice 用过的所有 hash 和历史昵称\n"
+        "  aka *Usq8WxD    直接用 hash 查历史昵称\n"
+        "\n"
+        "hash 基于 IP 生成，比 trip（基于密码）更稳定\n"
+        "用户换密码 trip 会变，但 IP 不变 hash 就不变"
+    ),
+    "motto": (
+        "motto <签名> | motto off\n"
+        "设置个人签名，显示在 whois 身份卡片中\n"
+        "\n"
+        "用法：\n"
+        "  motto 今天也要元气满满   设置签名\n"
+        "  motto                      查看当前签名\n"
+        "  motto off                  清除签名\n"
+        "\n"
+        "最多 100 字符"
+    ),
+    "whois": (
+        "whois <昵称>\n"
+        "查看用户的完整身份卡片\n"
+        "\n"
+        "包含信息：Trip / Hash / Level / Color / 状态（在线/离线）\n"
+        "最后发言时间 / 聊天统计 / 个人签名 / 历史昵称\n"
+        "\n"
+        "别名：who"
+    ),
     "time": (
         "time\n"
         "文学时钟，从文学作品中获取当前时间的引用\n"
