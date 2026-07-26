@@ -556,14 +556,14 @@ class Bot:
         while self._running:
             # 计算到下一个整点的等待时间
             now_ts = _t.time()
-            now_local = _t.localtime(now_ts + 8 * 3600)  # UTC+8
+            now_local = _t.gmtime(now_ts + 8 * 3600)  # UTC+8
             # 到下一个整点的秒数
             wait = 3600 - now_local.tm_min * 60 - now_local.tm_sec
             _t.sleep(wait)
             if not self._running:
                 break
 
-            now_local = _t.localtime(_t.time() + 8 * 3600)
+            now_local = _t.gmtime(_t.time() + 8 * 3600)
             hour = now_local.tm_hour
 
             # 报时
@@ -584,7 +584,7 @@ class Bot:
                     f"---\n"
                     f"输入 help 查看功能 | @我 聊天"
                 )
-                self.conn.send({"cmd": "setMotd", "motd": motd})
+                self.conn.send({"cmd": "setmotd", "motd": motd})
             except Exception as e:
                 log.warning("更新 MOTD 失败", error=str(e))
 
