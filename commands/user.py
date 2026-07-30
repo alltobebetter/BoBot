@@ -119,12 +119,22 @@ def register(router):
             ctx.app.users.set_welcome(ctx.nick, ctx.trip, None)
             ctx.reply("已关闭欢迎词")
             return
+        # 安全检查：欢迎语不能被解析为命令（防止命令注入）
+        text = ctx.arg_str
+        prefix = config.bot.prefix
+        first_word = text.split()[0].lower() if text.split() else ""
+        if prefix and text.startswith(prefix):
+            ctx.reply("欢迎词不能以命令前缀开头，这可能被误执行为命令")
+            return
+        if router.resolve(first_word):
+            ctx.reply(f"欢迎词不能以命令名「{first_word}」开头，这可能被误执行为命令")
+            return
         price = config.shop.custom_welcome_update_price
         spend = ctx.app.coins.spend(ctx.nick, ctx.trip, price, reason="设置欢迎词")
         if not spend:
             ctx.reply(spend.message)
             return
-        ctx.app.users.set_welcome(ctx.nick, ctx.trip, ctx.arg_str)
+        ctx.app.users.set_welcome(ctx.nick, ctx.trip, text)
         ctx.reply(f"[OK] 欢迎词已设置（花费 {price} 金币）")
 
     @router.command("color", "颜色", help="设置昵称颜色 color <hex|reset>", category="经济")

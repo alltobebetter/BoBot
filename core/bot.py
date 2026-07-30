@@ -445,8 +445,11 @@ class Bot:
         # 三层欢迎逻辑（同 BoBot 原版）
         welcome = self.app.users.welcome_for(nick)
         if welcome:
-            # 1. 用户设置了自定义欢迎词
-            self.say(welcome)
+            # 安全检查：欢迎语不能被解析为命令（防止命令注入）
+            if self._is_command_text(welcome):
+                log.warning("欢迎词包含命令格式，已跳过发送", nick=nick, text=welcome[:80])
+            else:
+                self.say(welcome)
         elif not self.app.users.is_known(nick):
             # 2. 新用户：创建账户 + 默认欢迎 + 私聊功能介绍
             self.app.users.get_or_create(nick, msg.get("trip", ""))
@@ -524,6 +527,16 @@ class Bot:
             if parts:
                 return parts[0].lower(), parts[1:]
         return None, []
+
+    def _is_command_text(self, text: str) -> bool:
+        """判断文本是否会被解析为命令（用于过滤用户自定义内容）。"""
+        prefix = self.config.bot.prefix
+        if prefix and text.startswith(prefix):
+            return True
+        if not prefix:
+            first = text.split()[0].lower() if text.split() else ""
+            return self.router.resolve(first) is not None
+        return False
 
     # ---- 整点报时 + 自动 MOTD ----
     CLOCK_MSGS = [
