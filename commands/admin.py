@@ -162,6 +162,9 @@ def register(router):
             nick, coins, item=item, item_qty=item_qty,
             reason=reason, admin=ctx.nick,
         ).message)
+        # 如果目标用户当前在线，立即发放
+        if nick in ctx.bot.online_users:
+            ctx.bot._deliver_reward(nick)
 
     @router.command("feedbacks", "fblist", help="（管理员）查看反馈列表", category="管理")
     def feedbacks(ctx):

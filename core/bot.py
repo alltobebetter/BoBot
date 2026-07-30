@@ -326,6 +326,8 @@ class Bot:
                 except Exception:
                     pass
             log.info("当前在线", count=len(self.online_users))
+            # bot 启动/重连时检查所有在线用户是否有待领奖励
+            self._check_online_rewards()
         elif cmd == "onlineRemove":
             nick = msg.get("nick", "")
             self.online_users.pop(nick, None)
@@ -509,6 +511,16 @@ class Bot:
             log.info("奖励已发放", nick=nick, coins=coins, item=item)
         except Exception as e:
             log.error("奖励发放失败", exc=e, nick=nick)
+
+    def _check_online_rewards(self) -> None:
+        """bot 启动/重连时检查所有在线用户是否有待领奖励。"""
+        for nick in list(self.online_users.keys()):
+            try:
+                reward = self.app.rewards.pending_for(nick)
+                if reward:
+                    self._deliver_reward(nick)
+            except Exception:
+                pass
 
     def _whisper_intro(self, nick: str) -> None:
         """新用户一次性私聊功能介绍。"""
