@@ -378,7 +378,27 @@ DETAILS: dict[str, str] = {
         "\n"
         "用法：\n"
         "  feedback         查看版本信息\n"
-        "  feedback 有个bug  提交反馈"
+        "  feedback 有个bug  提交反馈\n"
+        "\n"
+        "注：反馈会存入数据库，管理员可查看并奖励采纳的反馈"
+    ),
+    "reward": (
+        "reward <昵称> <金币> [道具:数量] [理由] | reward list | reward cancel <昵称>\n"
+        "管理员挂奖励，用户进入聊天室时自动发放\n"
+        "\n"
+        "用法：\n"
+        "  reward sun 300 反馈被采纳        给 sun 挂 300 金币奖励\n"
+        "  reward sun 300 double_card:1 反馈  金币 + 道具\n"
+        "  reward list                        查看待发放列表\n"
+        "  reward cancel sun                  取消未发放的奖励"
+    ),
+    "feedbacks": (
+        "feedbacks\n"
+        "查看用户反馈列表（管理员）\n"
+        "\n"
+        "别名：fblist\n"
+        "\n"
+        "反馈由用户通过 feedback 命令提交，存入数据库"
     ),
     "welcome": (
         "welcome <文本> | welcome off\n"

@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import os
 
+from constants import item_name
 from utils.text import split_user_key
-from utils.validate import parse_int
+from utils.validate import parse_int, parse_positive_int
 
 
 def register(router):
@@ -94,6 +95,91 @@ def register(router):
         ctx.bot.nick = new_nick
         ctx.reply(f"[OK] 昵称已更改：{old_nick} → {new_nick}")
 
+    @router.command("reward", help="（管理员）挂奖励 reward <昵称> <金币> [道具:数量] [理由]", category="管理")
+    def reward(ctx):
+        if not ctx.is_admin:
+            ctx.reply("[ERR] 仅管理员可用")
+            return
+        if not ctx.args:
+            pending = ctx.app.rewards.list_pending()
+            if not pending:
+                ctx.reply("[INFO] 当前没有待发放奖励")
+                return
+            lines = ["[INFO] 待发放奖励："]
+            for r in pending:
+                parts = [f"{r['coins']} 金币"] if r.get("coins") else []
+                if r.get("item") and r.get("item_qty"):
+                    parts.append(f"{item_name(r['item'])} x{r['item_qty']}")
+                desc = " + ".join(parts)
+                reason = f"（{r['reason']}）" if r.get("reason") else ""
+                lines.append(f"• {r['nick']}：{desc}{reason}")
+            ctx.reply_smart("\n".join(lines))
+            return
+        sub = ctx.args[0].lower()
+        if sub == "cancel":
+            if len(ctx.args) < 2:
+                ctx.reply("用法：reward cancel <昵称>")
+                return
+            ctx.reply(ctx.app.rewards.cancel(ctx.args[1]).message)
+            return
+        if sub == "list":
+            pending = ctx.app.rewards.list_pending()
+            if not pending:
+                ctx.reply("[INFO] 当前没有待发放奖励")
+                return
+            lines = ["[INFO] 待发放奖励："]
+            for r in pending:
+                parts = [f"{r['coins']} 金币"] if r.get("coins") else []
+                if r.get("item") and r.get("item_qty"):
+                    parts.append(f"{item_name(r['item'])} x{r['item_qty']}")
+                desc = " + ".join(parts)
+                reason = f"（{r['reason']}）" if r.get("reason") else ""
+                lines.append(f"• {r['nick']}：{desc}{reason}")
+            ctx.reply_smart("\n".join(lines))
+            return
+        # reward <昵称> <金币> [道具:数量] [理由]
+        if len(ctx.args) < 2:
+            ctx.reply("用法：reward <昵称> <金币> [道具:数量] [理由]\nreward list\nreward cancel <昵称>")
+            return
+        nick = ctx.args[0]
+        coins = parse_int(ctx.args[1])
+        if coins is None:
+            ctx.reply("金币数量无效")
+            return
+        item = ""
+        item_qty = 0
+        reason = ""
+        for extra in ctx.args[2:]:
+            if ":" in extra and not reason:
+                # 道具:数量 格式
+                parts = extra.split(":", 1)
+                item = parts[0]
+                item_qty = parse_positive_int(parts[1]) or 1
+            else:
+                # 理由（支持多词）
+                reason = (reason + " " + extra).strip() if reason else extra
+        ctx.reply(ctx.app.rewards.create(
+            nick, coins, item=item, item_qty=item_qty,
+            reason=reason, admin=ctx.nick,
+        ).message)
+
+    @router.command("feedbacks", "fblist", help="（管理员）查看反馈列表", category="管理")
+    def feedbacks(ctx):
+        if not ctx.is_admin:
+            ctx.reply("[ERR] 仅管理员可用")
+            return
+        rows = ctx.app.feedback.list_pending(limit=20)
+        if not rows:
+            ctx.reply("[INFO] 暂无待处理反馈")
+            return
+        lines = ["[INFO] 待处理反馈："]
+        for r in rows:
+            ts = r["ts"][:16].replace("T", " ") if r.get("ts") else ""
+            text = r["content"][:60] + ("…" if len(r["content"]) > 60 else "")
+            lines.append(f"#{r['id']} {r['nick']}（{ts}）：{text}")
+        lines.append("处理：reward <昵称> <金币> [理由]")
+        ctx.reply_smart("\n".join(lines))
+
     @router.command("admin", help="（管理员）系统管理 admin <health|perf|clearai|cleanhist>", category="管理")
     def admin(ctx):
         if not ctx.is_admin:
@@ -107,7 +193,9 @@ def register(router):
                 "• admin clearai - 清除所有人 AI 聊天记录\n"
                 "• admin cleanhist [天数] - 清理旧聊天记录\n"
                 "• serverstats - 服务器统计\n"
-                "• changenick <昵称> - 更改机器人昵称"
+                "• changenick <昵称> - 更改机器人昵称\n"
+                "• reward <昵称> <金币> [道具:数量] [理由] - 挂奖励\n"
+                "• feedbacks - 查看反馈列表"
             )
             return
         sub = ctx.args[0].lower()

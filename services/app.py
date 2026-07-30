@@ -11,6 +11,7 @@ from services.ai import AIService
 from services.codeagent import CodeAgent
 from services.digest import DigestService
 from services.economy import CheckinService, CoinService, InventoryService, ShopService
+from services.feedback import FeedbackService, RewardService
 from services.fortune import FortuneService
 from services.friends import FriendsService
 from services.history import HistoryService
@@ -86,6 +87,8 @@ class App:
         self.look = LookService()
         self.identity = IdentityService(self.kv)
         self.motto = MottoService(self.kv)
+        self.feedback = FeedbackService(self.db)
+        self.rewards = RewardService(self.kv)
 
         # 游戏
         self.games = GameRegistry(self.kv)

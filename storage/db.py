@@ -126,6 +126,16 @@ CREATE TABLE IF NOT EXISTS digests (
     created_ts TEXT,
     PRIMARY KEY (date, channel)
 );
+CREATE TABLE IF NOT EXISTS feedbacks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_key TEXT,
+    nick TEXT,
+    trip TEXT,
+    content TEXT,
+    ts TEXT,
+    status TEXT NOT NULL DEFAULT 'pending'
+);
+CREATE INDEX IF NOT EXISTS idx_feedbacks_status ON feedbacks(status);
 """
 
 

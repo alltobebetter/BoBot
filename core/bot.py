@@ -463,6 +463,9 @@ class Bot:
         # 投递待领留言
         self._deliver_messages(nick)
 
+        # 检查并发放待领奖励
+        self._deliver_reward(nick)
+
     def _deliver_messages(self, nick: str) -> None:
         """检查并投递该用户的未领留言。"""
         try:
@@ -474,6 +477,38 @@ class Bot:
             self.app.messages.mark_delivered(nick)
         except Exception as e:
             log.error("留言投递失败", exc=e, nick=nick)
+
+    def _deliver_reward(self, nick: str) -> None:
+        """检查并发放该用户的待领奖励。"""
+        try:
+            reward = self.app.rewards.pending_for(nick)
+            if not reward:
+                return
+            trip = self.online_users.get(nick, {}).get("trip", "")
+            parts = []
+            # 发金币
+            coins = reward.get("coins", 0)
+            if coins:
+                self.app.coins.add(nick, trip, coins, reason=reward.get("reason") or "奖励")
+                parts.append(f"{coins} 金币")
+            # 发道具
+            item = reward.get("item", "")
+            item_qty = reward.get("item_qty", 0)
+            if item and item_qty:
+                from utils.text import user_key
+                self.app.inventory.add(user_key(nick, trip), item, item_qty)
+                from constants import item_name
+                parts.append(f"{item_name(item)} x{item_qty}")
+            if not parts:
+                return
+            desc = " + ".join(parts)
+            reason = reward.get("reason", "")
+            msg = f"@{nick} 感谢{reason}！已为您发放奖励：{desc}"
+            self.say(msg)
+            self.app.rewards.mark_delivered(nick)
+            log.info("奖励已发放", nick=nick, coins=coins, item=item)
+        except Exception as e:
+            log.error("奖励发放失败", exc=e, nick=nick)
 
     def _whisper_intro(self, nick: str) -> None:
         """新用户一次性私聊功能介绍。"""

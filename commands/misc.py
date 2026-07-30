@@ -206,8 +206,9 @@ def register(router):
                 "输入 help 查看全部功能"
             )
             return
+        result = ctx.app.feedback.submit(ctx.nick, ctx.trip, ctx.arg_str)
         log.info("用户反馈", user=ctx.user_key, content=ctx.arg_str[:200])
-        ctx.reply("[OK] 感谢反馈")
+        ctx.reply(result.message)
 
     @router.command("credits", "致谢", "credit", "thanks", help="致谢与开源信息", category="其他")
     def credits(ctx):
