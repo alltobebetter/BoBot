@@ -119,15 +119,15 @@ def register(router):
             ctx.app.users.set_welcome(ctx.nick, ctx.trip, None)
             ctx.reply("已关闭欢迎词")
             return
-        # 安全检查：欢迎语不能被解析为命令（防止命令注入）
+        # 安全检查：欢迎语不能以 / 开头（hackchat 服务器协议层命令前缀）
+        # 也不能匹配 bot 自身命令（防止 bot 或其他 bot 误执行）
         text = ctx.arg_str
-        prefix = config.bot.prefix
         first_word = text.split()[0].lower() if text.split() else ""
-        if prefix and text.startswith(prefix):
-            ctx.reply("欢迎词不能以命令前缀开头，这可能被误执行为命令")
+        if text.startswith("/"):
+            ctx.reply("欢迎词不能以 / 开头，hackchat 服务器会将其解析为命令")
             return
         if router.resolve(first_word):
-            ctx.reply(f"欢迎词不能以命令名「{first_word}」开头，这可能被误执行为命令")
+            ctx.reply(f"欢迎词不能以命令名「{first_word}」开头")
             return
         price = config.shop.custom_welcome_update_price
         spend = ctx.app.coins.spend(ctx.nick, ctx.trip, price, reason="设置欢迎词")

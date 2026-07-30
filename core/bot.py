@@ -529,13 +529,25 @@ class Bot:
         return None, []
 
     def _is_command_text(self, text: str) -> bool:
-        """判断文本是否会被解析为命令（用于过滤用户自定义内容）。"""
-        prefix = self.config.bot.prefix
-        if prefix and text.startswith(prefix):
+        """判断文本是否会被解析为命令（用于过滤用户自定义内容）。
+
+        两层检查：
+        1. hackchat 服务器协议层：/ 开头的 chat 消息会被服务器解析为命令
+           （/nick 改名、/shrug、/myhash 等，见 hackchat-src/commands/core/）
+        2. bot 自身命令层：第一个词匹配已注册命令名/别名时也会被 bot 解析
+        """
+        # hackchat 服务器协议层：/ 开头即命令
+        if text.startswith("/"):
             return True
-        if not prefix:
+        # bot 自身命令层：无前缀时检查第一个词是否匹配命令名/别名
+        prefix = self.config.bot.prefix
+        if prefix:
+            if text.startswith(prefix):
+                return True
+        else:
             first = text.split()[0].lower() if text.split() else ""
-            return self.router.resolve(first) is not None
+            if self.router.resolve(first) is not None:
+                return True
         return False
 
     # ---- 整点报时 + 自动 MOTD ----
