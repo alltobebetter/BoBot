@@ -460,9 +460,31 @@ DETAILS: dict[str, str] = {
 }
 
 
+def _apply_prefix(text: str, prefix: str, router) -> str:
+    """对详细说明文本中行首的命令名/别名加前缀。"""
+    if not prefix:
+        return text
+    import re
+    # 收集所有命令名和别名，按长度倒序（长名优先匹配，避免 i 匹配到 idiom）
+    cmds = sorted(
+        set(router._commands.keys()) | set(router._aliases.keys()),
+        key=len, reverse=True,
+    )
+    if not cmds:
+        return text
+    pattern = re.compile(
+        r'^(\s*)(' + '|'.join(re.escape(c) for c in cmds) + r')(\s|$)',
+        re.MULTILINE,
+    )
+    return pattern.sub(
+        lambda m: f"{m.group(1)}{prefix}{m.group(2)}{m.group(3)}", text
+    )
+
+
 def register(router):
     @router.command("help", "menu", "帮助", help="显示帮助 help [命令名]", category="其他")
     def help_cmd(ctx):
+        p = ctx.bot.config.bot.prefix
         # help <命令名> → 详细说明
         if ctx.args:
             target = ctx.args[0].lower().lstrip("-")
@@ -471,15 +493,17 @@ def register(router):
             # 查详细说明
             detail = DETAILS.get(real_name) or DETAILS.get(target)
             if detail:
+                if p:
+                    detail = _apply_prefix(detail, p, router)
                 ctx.reply_smart(f"[INFO] {detail}")
             else:
                 # 没有详细说明，回退到简短描述
                 entries = router.help_entries()
                 info = entries.get(real_name) or entries.get(target)
                 if info:
-                    ctx.reply_smart(f"[INFO] {target} - {info['help']}")
+                    ctx.reply_smart(f"[INFO] {p}{target} - {info['help']}")
                 else:
-                    ctx.reply(f"[ERR] 未找到命令「{target}」，输入 help 查看全部命令")
+                    ctx.reply(f"[ERR] 未找到命令「{target}」，输入 {p}help 查看全部命令")
             return
 
         # help（无参数）→ 分类列表
@@ -491,8 +515,8 @@ def register(router):
         for cat in sorted(cats):
             lines.append(f"\n【{cat}】")
             for name, h in sorted(cats[cat]):
-                lines.append(f"{name} - {h}" if h else f"{name}")
-        lines.append(f"\n输入 help <命令名> 查看详细用法")
+                lines.append(f"{p}{name} - {h}" if h else f"{p}{name}")
+        lines.append(f"\n输入 {p}help <命令名> 查看详细用法")
         lines.append(f"网页版：{ctx.bot.config.bot.web_url}")
         lines.append("开源：https://github.com/alltobebetter/BoBot")
         ctx.reply_smart("\n".join(lines))
