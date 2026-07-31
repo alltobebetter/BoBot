@@ -461,24 +461,36 @@ DETAILS: dict[str, str] = {
 
 
 def _apply_prefix(text: str, prefix: str, router) -> str:
-    """对详细说明文本中行首的命令名/别名加前缀。"""
+    """对详细说明文本中的命令名/别名加前缀。
+
+    两轮匹配：
+    1. 行首的命令名（如 "say <内容>" → ".say <内容>"）
+    2. 冒号后的命令名（如 "用法：say 大家好" → "用法：.say 大家好"）
+    """
     if not prefix:
         return text
     import re
-    # 收集所有命令名和别名，按长度倒序（长名优先匹配，避免 i 匹配到 idiom）
     cmds = sorted(
         set(router._commands.keys()) | set(router._aliases.keys()),
         key=len, reverse=True,
     )
     if not cmds:
         return text
-    pattern = re.compile(
-        r'^(\s*)(' + '|'.join(re.escape(c) for c in cmds) + r')(\s|$)',
-        re.MULTILINE,
+    cmds_pattern = '|'.join(re.escape(c) for c in cmds)
+    # Pass 1: 行首命令名
+    text = re.sub(
+        r'^(\s*)(' + cmds_pattern + r')(\s|$)',
+        lambda m: f"{m.group(1)}{prefix}{m.group(2)}{m.group(3)}",
+        text,
+        flags=re.MULTILINE,
     )
-    return pattern.sub(
-        lambda m: f"{m.group(1)}{prefix}{m.group(2)}{m.group(3)}", text
+    # Pass 2: 冒号后的命令名（用法：cmd / 注：cmd / 别名：cmd）
+    text = re.sub(
+        r'([：:]\s*)(' + cmds_pattern + r')(?=\s)',
+        lambda m: f"{m.group(1)}{prefix}{m.group(2)}",
+        text,
     )
+    return text
 
 
 def register(router):
@@ -487,7 +499,10 @@ def register(router):
         p = ctx.bot.config.bot.prefix
         # help <命令名> → 详细说明
         if ctx.args:
-            target = ctx.args[0].lower().lstrip("-")
+            target = ctx.args[0].lower()
+            if p and target.startswith(p):
+                target = target[len(p):]
+            target = target.lstrip("-")
             # 先查别名
             real_name = router._aliases.get(target, target)
             # 查详细说明
