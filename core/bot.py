@@ -229,9 +229,10 @@ class Bot:
 
         # 进场自我介绍（只发一次，重连不发）
         if not self._intro_sent:
+            p = self.config.bot.prefix
             intro = (
                 f"我是 {self.config.bot.name}，版本 {self.VERSION}，已上线！"
-                f"输入 help 查看功能～ 开源地址：https://github.com/alltobebetter/BoBot"
+                f"输入 {p}help 查看功能～ 开源地址：https://github.com/alltobebetter/BoBot"
             )
             self.say(intro)
             self._intro_sent = True
@@ -525,13 +526,14 @@ class Bot:
     def _whisper_intro(self, nick: str) -> None:
         """新用户一次性私聊功能介绍。"""
         web = self.config.bot.web_url
+        p = self.config.bot.prefix
         lines = [
             "[INFO] 此消息仅出现一次。",
             "",
             "@我 + 消息 → AI 聊天",
-            "wordle / guess / dice / idiom → 小游戏",
-            "checkin → 每日签到领金币",
-            "help → 查看全部功能",
+            f"{p}wordle / {p}guess / {p}dice / {p}idiom → 小游戏",
+            f"{p}checkin → 每日签到领金币",
+            f"{p}help → 查看全部功能",
             f"网页版：{web}",
             "开源：https://github.com/alltobebetter/BoBot",
         ]
