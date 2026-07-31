@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import random
 
+from config import config
 from core.result import Result
 from games.base import BaseGame
 
@@ -22,15 +23,15 @@ class GuessGame(BaseGame):
 
     def start(self) -> Result:
         if self.active:
-            return Result.fail(f"已有一局猜数字（范围 {self.low}-{self.high}），直接 /g <数字>")
+            return Result.fail(f"已有一局猜数字（范围 {self.low}-{self.high}），直接 {config.bot.prefix}g <数字>")
         self.answer = random.randint(1, 100)
         self.low, self.high, self.tries = 1, 100, 0
         self._start_clock()
-        return Result.ok("[INFO] 猜数字开始，1-100，发送 /g <数字>")
+        return Result.ok(f"[INFO] 猜数字开始，1-100，发送 {config.bot.prefix}g <数字>")
 
     def guess(self, n: int) -> Result:
         if not self.active:
-            return Result.fail("没有进行中的猜数字，/guess 开始")
+            return Result.fail("没有进行中的猜数字，{p}guess 开始".format(p=config.bot.prefix))
         if n < 1 or n > 100:
             return Result.fail("请猜 1-100 之间的数字")
         self.tries += 1
@@ -57,16 +58,16 @@ class NumberGame(BaseGame):
 
     def start(self) -> Result:
         if self.active:
-            return Result.fail("已有一局 1A2B，直接 /n <4位不重复数字>")
+            return Result.fail(f"已有一局 1A2B，直接 {config.bot.prefix}n <4位不重复数字>")
         digits = random.sample("0123456789", 4)
         self.answer = "".join(digits)
         self.tries = 0
         self._start_clock()
-        return Result.ok("[INFO] 1A2B 开始，猜 4 位不重复数字，发送 /n <数字>\nA=位置正确 B=数字对位置错")
+        return Result.ok(f"[INFO] 1A2B 开始，猜 4 位不重复数字，发送 {config.bot.prefix}n <数字>\nA=位置正确 B=数字对位置错")
 
     def guess(self, s: str) -> Result:
         if not self.active:
-            return Result.fail("没有进行中的 1A2B，/number 开始")
+            return Result.fail("没有进行中的 1A2B，{p}number 开始".format(p=config.bot.prefix))
         s = s.strip()
         if len(s) != 4 or not s.isdigit() or len(set(s)) != 4:
             return Result.fail("请输入 4 位不重复的数字")

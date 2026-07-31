@@ -15,6 +15,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
+from config import config
 from core.result import Result
 from storage.kv import KVStore
 from utils.logger import log
@@ -132,7 +133,7 @@ class RedPacketService:
         return Result.ok(
             f"[OK] {nick} 发了 {amount} 金币红包，{people} 人可抢\n"
             f"红包 ID：{pid}\n"
-            f"发送 packet {pid} 抢红包\n"
+            f"发送 {config.bot.prefix}packet {pid} 抢红包\n"
             f"24 小时内未抢完自动退还",
             data={"charge": amount},
         )

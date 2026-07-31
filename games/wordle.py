@@ -52,11 +52,11 @@ class WordleGame(BaseGame):
 
     def start(self) -> Result:
         if self.active and not self.expired():
-            return Result.fail("已有一局 Wordle 进行中，直接 w <单词> 猜")
+            return Result.fail(f"已有一局 Wordle 进行中，直接 {config.bot.prefix}w <单词> 猜")
         self.answer = random.choice(ANSWER_WORDS)
         self.guesses = []
         self._start_clock()
-        return Result.ok("[INFO] Wordle 开始，5 个字母，6 次机会，发送 w <单词>")
+        return Result.ok(f"[INFO] Wordle 开始，5 个字母，6 次机会，发送 {config.bot.prefix}w <单词>")
 
     def _evaluate(self, word: str) -> List[str]:
         """返回每位的判定结果列表：correct / present / absent。"""

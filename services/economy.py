@@ -159,14 +159,14 @@ class ShopService:
                 lines.append(
                     f"• {item_id} {info.get('name', item_id)} - {price} 金币（{info.get('desc', '')}）"
                 )
-        lines.append("购买：/buy <物品id> [数量]")
+        lines.append(f"购买：{config.bot.prefix}buy <物品id> [数量]")
         return "\n".join(lines)
 
     def buy(self, nick: str, trip: str, item_id: str, qty: int = 1) -> Result:
         cat = self.catalog()
         price = cat.get(item_id)
         if price is None:
-            return Result.fail("商品不存在，发送 /shop 查看")
+            return Result.fail(f"商品不存在，发送 {config.bot.prefix}shop 查看")
         if qty <= 0:
             return Result.fail("数量无效")
         total = price * qty

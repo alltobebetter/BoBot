@@ -26,7 +26,7 @@ class DiceGame(BaseGame):
 
     def start(self, nick: str, trip: str, bet: int) -> Result:
         if self.active and not self.expired():
-            return Result.fail("已有一局骰子进行中，发送 /dice join <注注> 加入")
+            return Result.fail(f"已有一局骰子进行中，发送 {config.bot.prefix}dice join <注注> 加入")
         if bet <= 0:
             return Result.fail("注注需大于 0")
         self.reset()
@@ -37,13 +37,13 @@ class DiceGame(BaseGame):
         self.players[key] = {"nick": nick, "trip": trip, "bet": bet, "roll": 0}
         self.pot += bet
         return Result.ok(
-            f"[OK] {nick} 开局，注注 {bet} 金币\n其他人发送 /dice join <注注> 加入，/dice roll 开骰",
+            f"[OK] {nick} 开局，注注 {bet} 金币\n其他人发送 {config.bot.prefix}dice join <注注> 加入，{config.bot.prefix}dice roll 开骰",
             data={"charge": bet},
         )
 
     def join(self, nick: str, trip: str, bet: int) -> Result:
         if not self.active or self.expired():
-            return Result.fail("现在没有骰子局，发送 /dice <注注> 开局")
+            return Result.fail(f"现在没有骰子局，发送 {config.bot.prefix}dice <注注> 开局")
         if bet <= 0:
             return Result.fail("注注需大于 0")
         key = user_key(nick, trip)

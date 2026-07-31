@@ -188,7 +188,7 @@ class BlackjackGame(BaseGame):
 
         names = "、".join(p.nick for p in self.players.values())
         return Result.ok(
-            f"[OK] {nick} 加入，下注 {bet} 金币\n当前玩家：{names}\n发送 bj start 开始",
+            f"[OK] {nick} 加入，下注 {bet} 金币\n当前玩家：{names}\n发送 {config.bot.prefix}bj start 开始",
             data={"charge": bet},
         )
 
@@ -211,14 +211,14 @@ class BlackjackGame(BaseGame):
     def start(self, nick: str, trip: str) -> Result:
         """开始发牌。"""
         if not self.active or self.expired():
-            return Result.fail("没有进行中的21点局，发送 bj <下注> 加入")
+            return Result.fail(f"没有进行中的21点局，发送 {config.bot.prefix}bj <下注> 加入")
         if self.phase != "waiting":
             return Result.fail("本局已开始")
         if len(self.players) < 1:
             return Result.fail("至少需要 1 人才能开始")
         key = user_key(nick, trip)
         if key not in self.players:
-            return Result.fail("你还没有加入，发送 bj <下注> 加入")
+            return Result.fail(f"你还没有加入，发送 {config.bot.prefix}bj <下注> 加入")
 
         self.phase = "playing"
         self.deck.reset()
@@ -319,11 +319,11 @@ class BlackjackGame(BaseGame):
         """查看当前局面。"""
         if self.phase == "waiting":
             if not self.players:
-                return Result.fail("没有进行中的21点局，发送 bj <下注> 加入")
+                return Result.fail(f"没有进行中的21点局，发送 {config.bot.prefix}bj <下注> 加入")
             names = "、".join(p.nick for p in self.players.values())
-            return Result.ok(f"[INFO] 等待开始\n玩家：{names}\n发送 bj start 开始")
+            return Result.ok(f"[INFO] 等待开始\n玩家：{names}\n发送 {config.bot.prefix}bj start 开始")
         if self.phase == "done":
-            return Result.ok("[INFO] 本局已结束，发送 bj <下注> 开始新一局")
+            return Result.ok(f"[INFO] 本局已结束，发送 {config.bot.prefix}bj <下注> 开始新一局")
 
         lines = ["[INFO] 当前局面：", ""]
         if self.banker_hand:
@@ -407,7 +407,7 @@ class BlackjackGame(BaseGame):
         self.phase = "done"
         self.active = False
         lines.append("")
-        lines.append("本局结束，发送 bj <下注> 开始新一局")
+        lines.append(f"本局结束，发送 {config.bot.prefix}bj <下注> 开始新一局")
 
         self._result_text = "\n".join(lines)
         self._result_payouts = payouts

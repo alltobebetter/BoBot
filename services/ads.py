@@ -48,7 +48,7 @@ class AdsService:
 
         pool = self._pool()
         if not pool:
-            return Result.fail("目前没有广告，发送 /ad <内容> 来发布")
+            return Result.fail(f"目前没有广告，发送 {config.bot.prefix}ad <内容> 来发布")
         key = user_key(nick, trip)
         vkey = f"views:{key}:{today_str()}"
         views = self.kv.get(_NS, vkey, 0)
