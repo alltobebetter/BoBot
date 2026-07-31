@@ -502,7 +502,6 @@ def register(router):
             target = ctx.args[0].lower()
             if p and target.startswith(p):
                 target = target[len(p):]
-            target = target.lstrip("-")
             # 先查别名
             real_name = router._aliases.get(target, target)
             # 查详细说明
