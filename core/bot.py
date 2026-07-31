@@ -456,7 +456,7 @@ class Bot:
         elif not self.app.users.is_known(nick):
             # 2. 新用户：创建账户 + 默认欢迎 + 私聊功能介绍
             self.app.users.get_or_create(nick, msg.get("trip", ""))
-            self.say(f"欢迎 {nick} 加入聊天室！输入 help 查看帮助")
+            self.say(f"欢迎 {nick} 加入聊天室！输入 {self.config.bot.prefix}help 查看帮助")
             self._whisper_intro(nick)
         else:
             # 3. 已知用户且未设自定义欢迎词：随机模板
@@ -663,7 +663,7 @@ class Bot:
                     f"在线人数：{len(self.online_users)}\n"
                     f"当前时间：{hour:02d}:00 (UTC+8)\n"
                     f"---\n"
-                    f"输入 help 查看功能 | @我 聊天"
+                    f"输入 {self.config.bot.prefix}help 查看功能 | @我 聊天"
                 )
                 self.conn.send({"cmd": "setmotd", "motd": motd})
             except Exception as e:
